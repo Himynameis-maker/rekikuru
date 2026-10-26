@@ -8,11 +8,12 @@
 <div id="pad" class="pl"><div id="dpad"><i>▲</i><i>◀</i><i>▶</i><i>▼</i></div><div id="hbtn">🔨</div></div>
 <div id="editor" class="ed">
  <div id="palette"></div>
- <div class="row"><button id="bTest">▶ テスト</button><button id="bSave">保存</button><button id="bLoad">読込</button><button id="bClear">全消し</button>
+ <div class="row"><button id="bTest">▶ テスト</button><button id="bSave">保存</button><button id="bLoad">読込</button><button id="bClear">全消し</button><button id="bParam">⚙ 設定</button><button id="bCode">コード</button>
   <label>列 <input id="cw" type="number" min="8" max="40"></label><label>行 <input id="ch" type="number" min="6" max="30"></label></div>
- <details><summary>パラメーター</summary><div id="pbody"></div><button id="pReset">初期値に戻す</button></details>
- <details id="code"><summary>マップコード（コピー/貼り付け）</summary><textarea id="lv"></textarea><button id="lvLoad">コードを読み込む</button></details>
 </div>
+<div id="sheet" hidden><div class="sbox"><button id="sClose">✕ 閉じる</button>
+ <section id="sParam"><div id="pbody"></div><button id="pReset">初期値に戻す</button></section>
+ <section id="sCode"><p>マップコード（コピー/貼り付け）</p><textarea id="lv"></textarea><button id="lvLoad">読み込む</button></section></div></div>
 <script src="js/config.js"></script>
 <script src="js/core/gfx.js"></script>
 <script src="js/core/sound.js"></script>
