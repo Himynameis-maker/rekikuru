@@ -3,25 +3,31 @@
  const KEYS={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'hit',KeyZ:'hit'};
  let G=null,mode='title',testing=false,last=0,mt;
  const msg=t=>{$('msg').textContent=t;clearTimeout(mt);mt=setTimeout(()=>$('msg').textContent='',2000)};
+ // キャンバスを残り領域にアスペクト比維持でフィット(ページはスクロールさせない)
+ function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k)+'px';cv.style.height=Math.floor(cv.height*k)+'px'}
+ WC.onFit=fit;addEventListener('resize',fit);
+ document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('button'))e.preventDefault()}); // ボタンにフォーカスさせない
  function setMode(m){mode=m;document.body.className=m;
   if(m=='title'){G=null;cv.width=640;cv.height=480;c.fillStyle='#000';c.fillRect(0,0,640,480)}
-  if(m=='edit'){G=null;sizes();E.render(c)}}
+  if(m=='edit'){G=null;sizes();E.render(c)}
+  fit()}
  function play(text,test){testing=test;G=new WC.Game(text);G.keys=K;
   const back=()=>setMode(test?'edit':'title');G.onOver=back;if(test)G.onClear=back;
   cv.width=G.level.w*WC.CONFIG.tile;cv.height=G.level.h*WC.CONFIG.tile;setMode('play')}
  function sizes(){$('cw').value=E.grid[0].length;$('ch').value=E.grid.length}
+ const sheet=$('sheet'),open=s=>{sheet.dataset.s=s;sheet.hidden=false;if(s=='code')$('lv').value=E.text()};
  E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));
  $('bPlay').onclick=()=>play(E.text(),false);
  $('bEdit').onclick=()=>setMode('edit');
  $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
  $('bTest').onclick=()=>E.text().includes('P')?play(E.text(),true):msg('プレイヤー(P)を置いてね');
- $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.render(c)};
- $('cw').onchange=$('ch').onchange=()=>{E.resize(Math.min(40,Math.max(8,+$('cw').value||20)),Math.min(30,Math.max(6,+$('ch').value||15)));sizes();E.render(c)};
- $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG}));msg('保存した')}catch(e){msg('保存できない環境。コード欄をコピーしてね')}};
- $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);WC.Params.build($('pbody'));sizes();E.render(c);msg('読み込んだ')}catch(e){msg('保存データなし')}};
+ $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.fix();E.render(c)};
+ $('cw').onchange=$('ch').onchange=()=>{E.resize(Math.min(40,Math.max(8,+$('cw').value||20)),Math.min(30,Math.max(6,+$('ch').value||15)));sizes();E.render(c);fit()};
+ $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
+ $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
+ $('bParam').onclick=()=>open('param');$('bCode').onclick=()=>open('code');$('sClose').onclick=()=>sheet.hidden=true;
  $('pReset').onclick=()=>{WC.Params.reset();WC.Params.build($('pbody'))};
- $('code').ontoggle=()=>{if($('code').open)$('lv').value=E.text()};
- $('lvLoad').onclick=()=>{if($('lv').value.trim()){E.load($('lv').value);sizes();E.render(c);msg('読み込んだ')}};
+ $('lvLoad').onclick=()=>{if($('lv').value.trim()){E.load($('lv').value);sizes();E.render(c);fit();sheet.hidden=true;msg('読み込んだ')}};
  addEventListener('keydown',e=>{const k=KEYS[e.code];if(k&&mode=='play'&&document.activeElement.tagName!='TEXTAREA'){K[k]=true;e.preventDefault()}});
  addEventListener('keyup',e=>{const k=KEYS[e.code];if(k)K[k]=false});
  // タッチ操作: 十字パッドは指のスライドで方向が変わる
