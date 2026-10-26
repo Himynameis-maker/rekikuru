@@ -11,11 +11,11 @@ WC.CONFIG={
  ladder:{breakInterval:.08},
  fall:{speed:14,stun:3,boost:.15},        // 異常落下: 速度/スタン秒/復帰後の加速(最大2段階)
  enemies:{
-  chaser:{speed:3.2},
-  fastchaser:{speed:4},
-  runner:{speed:3.6},
-  foreman:{speed:5,lazy:.35,windup:.5,noDoor:true,harmless:true},
-  fireball:{speed:4.5,interval:10,noDoor:true}
+  chaser:{speed:1.6},
+  fastchaser:{speed:2.4},
+  runner:{speed:3.0},
+  foreman:{speed:3.6,lazy:.35,windup:.5,noDoor:true,harmless:true},
+  fireball:{speed:4,interval:10,noDoor:true}
  }
 };
 WC.DEFAULTS=JSON.parse(JSON.stringify(WC.CONFIG));
