@@ -1,14 +1,18 @@
-<!doctype html><html lang="ja"><meta charset="utf-8"><title>Wrecking Crew-like</title>
-<style>body{background:#111;color:#ddd;font:14px sans-serif;margin:12px}canvas{background:#000;max-width:100%;display:block}textarea{width:100%;height:150px;font:12px monospace;background:#222;color:#ddd}</style>
-<canvas id="cv" width="640" height="480"></canvas>
-<p>矢印/WASD: 移動　Space/Z: ハンマー</p>
-<details><summary>カスタムモード</summary>
-<p>マップ（1文字=1マス）</p><textarea id="lv"></textarea>
-<p>パラメーター上書き(JSON。js/config.js の項目名と同じ)</p><textarea id="cfg"></textarea>
-<button id="run">この設定で開始</button> <button id="reset">初期化</button>
-<pre>= 床 / P プレイヤー / W w V 壁(耐久1,2,3) / L 壊せる梯子 / H 壊せない梯子
-O ドラム缶 / T 吊りドラム缶 / B 爆弾 / D 扉 / 1 追尾 / 2 直進 / 3 ハンマー敵 / 4 高速追尾
-※梯子は上下の端の行にも置く。左右端に床を置くと画面ループ。最下段は必ず床。</pre></details>
+<!doctype html><html lang="ja"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Wrecking Crew-like</title><link rel="stylesheet" href="style.css">
+<body class="title">
+<div id="top"><button id="bBack" class="np">◀ もどる</button><span id="msg"></span></div>
+<div id="stage"><canvas id="cv" width="640" height="480"></canvas>
+ <div id="titlebox"><h1>WRECKING<br>CREW-like</h1><button id="bPlay">▶ あそぶ</button><button id="bEdit">✎ つくる</button></div></div>
+<div id="pad" class="pl"><div id="dpad"><i>▲</i><i>◀</i><i>▶</i><i>▼</i></div><div id="hbtn">🔨</div></div>
+<div id="editor" class="ed">
+ <div id="palette"></div>
+ <div class="row"><button id="bTest">▶ テスト</button><button id="bSave">保存</button><button id="bLoad">読込</button><button id="bClear">全消し</button>
+  <label>列 <input id="cw" type="number" min="8" max="40"></label><label>行 <input id="ch" type="number" min="6" max="30"></label></div>
+ <details><summary>パラメーター</summary><div id="pbody"></div><button id="pReset">初期値に戻す</button></details>
+ <details id="code"><summary>マップコード（コピー/貼り付け）</summary><textarea id="lv"></textarea><button id="lvLoad">コードを読み込む</button></details>
+</div>
 <script src="js/config.js"></script>
 <script src="js/core/gfx.js"></script>
 <script src="js/core/sound.js"></script>
@@ -18,6 +22,7 @@ O ドラム缶 / T 吊りドラム缶 / B 爆弾 / D 扉 / 1 追尾 / 2 直進 /
 <script src="js/objects/wall.js"></script>
 <script src="js/objects/ladder.js"></script>
 <script src="js/objects/drum.js"></script>
+<script src="js/objects/iron.js"></script>
 <script src="js/objects/bomb.js"></script>
 <script src="js/objects/door.js"></script>
 <script src="js/enemies/enemy.js"></script>
@@ -29,4 +34,6 @@ O ドラム缶 / T 吊りドラム缶 / B 爆弾 / D 扉 / 1 追尾 / 2 直進 /
 <script src="js/player.js"></script>
 <script src="js/levels/sample.js"></script>
 <script src="js/game.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/params.js"></script>
 <script src="js/main.js"></script>

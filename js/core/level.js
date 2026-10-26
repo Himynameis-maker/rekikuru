@@ -9,13 +9,14 @@ WC.Level=class{
    if(O)this.objs.set(x+','+y,new O(x,y,ch));
    if(E)this.spawns.push({E,x,y});
    if(ch=='P')this.player={x,y}}});
+  this.objs.forEach(o=>{if(o.kind=='drum'&&this.get(o.x,o.y+1)?.kind=='iron')this.floor[o.y][o.x]=false});
  }
  get(x,y){return this.objs.get(x+','+y)}
  del(x,y){this.objs.delete(x+','+y)}
  wrap(x){return(x+this.w)%this.w}
  ladder(x,y){const o=this.get(x,y);return!!(o&&o.isLadder)}
  blocked(x,y){const o=this.get(x,y);return!!(o&&o.blocks)}
- standable(x,y){return y>=this.h||this.floor[y][x]||this.ladder(x,y)}
+ standable(x,y){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)}
  canStep(x,y,dx,dy,bg){
   const nx=this.wrap(x+dx),ny=y+dy;
   if(ny<0||ny>=this.h)return false;

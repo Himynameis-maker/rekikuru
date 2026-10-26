@@ -7,3 +7,9 @@ WC.Gfx.fns.floor=(c,x,y,s)=>{c.fillStyle='#2a6';c.fillRect(x,y+s-5,s,5)};
 WC.Gfx.fns.wall=(c,x,y,s,o)=>{c.fillStyle=WC.CONFIG.wall.colors[o.hp]||'#fff';c.fillRect(x,y+3,s,s-6)};
 WC.Gfx.fns.ladder=(c,x,y,s,o)=>{c.fillStyle=o.needsBreak?'#ec6':'#89b';c.fillRect(x+8,y,3,s);c.fillRect(x+s-11,y,3,s);for(let i=4;i<s;i+=8)c.fillRect(x+8,y+i,s-16,2)};
 WC.Gfx.fns.door=(c,x,y,s,o)=>{c.fillStyle=o.isOpen?'#142':'#4a6';c.fillRect(x+4,y+2,s-8,s-4)};
+// 背景〜オブジェクトの描画(ゲームとエディタ共用)。梯子の上下端には足場を描く。
+WC.Gfx.terrain=(c,L,s)=>{
+ for(let y=0;y<L.h;y++)for(let x=0;x<L.w;x++)
+  if(L.floor[y][x]||y==L.h-1||(L.ladder(x,y)&&!(L.ladder(x,y-1)&&L.ladder(x,y+1))))WC.Gfx.draw('floor',c,x*s,y*s,s);
+ L.objs.forEach(o=>WC.Gfx.draw(o.kind,c,o.x*s,(o.fy??o.y)*s,s,o))};
+WC.Gfx.fns.iron=(c,x,y,s)=>{c.fillStyle='#778';c.fillRect(x+12,y,8,s)};

@@ -18,3 +18,4 @@ WC.CONFIG={
   fireball:{speed:4.5,interval:10,noDoor:true}
  }
 };
+WC.DEFAULTS=JSON.parse(JSON.stringify(WC.CONFIG));

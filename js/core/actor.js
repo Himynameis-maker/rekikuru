@@ -5,7 +5,8 @@ WC.Actor=class{
  go(x,y,fast=false){this.tx=x;this.ty=y;this.t=0;this.fast=fast}
  sync(){const wr=Math.abs(this.tx-this.x)>1;
   this.rx=wr?(this.t<.5?this.x:this.tx):this.x+(this.tx-this.x)*this.t;this.ry=this.y+(this.ty-this.y)*this.t}
- startAbn(){if(this.abn||this.hidden)return;this.abn=true;this.fast=true;WC.Sound.play('fall')}
+ settle(){if(this.t<1){if(this.t>=.5){this.x=this.tx;this.y=this.ty}this.tx=this.x;this.ty=this.y;this.t=1;this.sync()}}
+ startAbn(){if(this.abn||this.hidden)return;this.settle();this.abn=true;this.fast=true;WC.Sound.play('fall')}
  arrive(g){}
  decide(g){return null}
  update(dt,g){
