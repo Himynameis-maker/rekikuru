@@ -1,0 +1,32 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><title>Wrecking Crew-like</title>
+<style>body{background:#111;color:#ddd;font:14px sans-serif;margin:12px}canvas{background:#000;max-width:100%;display:block}textarea{width:100%;height:150px;font:12px monospace;background:#222;color:#ddd}</style>
+<canvas id="cv" width="640" height="480"></canvas>
+<p>矢印/WASD: 移動　Space/Z: ハンマー</p>
+<details><summary>カスタムモード</summary>
+<p>マップ（1文字=1マス）</p><textarea id="lv"></textarea>
+<p>パラメーター上書き(JSON。js/config.js の項目名と同じ)</p><textarea id="cfg"></textarea>
+<button id="run">この設定で開始</button> <button id="reset">初期化</button>
+<pre>= 床 / P プレイヤー / W w V 壁(耐久1,2,3) / L 壊せる梯子 / H 壊せない梯子
+O ドラム缶 / T 吊りドラム缶 / B 爆弾 / D 扉 / 1 追尾 / 2 直進 / 3 ハンマー敵 / 4 高速追尾
+※梯子は上下の端の行にも置く。左右端に床を置くと画面ループ。最下段は必ず床。</pre></details>
+<script src="js/config.js"></script>
+<script src="js/core/gfx.js"></script>
+<script src="js/core/sound.js"></script>
+<script src="js/core/level.js"></script>
+<script src="js/core/actor.js"></script>
+<script src="js/objects/object.js"></script>
+<script src="js/objects/wall.js"></script>
+<script src="js/objects/ladder.js"></script>
+<script src="js/objects/drum.js"></script>
+<script src="js/objects/bomb.js"></script>
+<script src="js/objects/door.js"></script>
+<script src="js/enemies/enemy.js"></script>
+<script src="js/enemies/chaser.js"></script>
+<script src="js/enemies/fastchaser.js"></script>
+<script src="js/enemies/runner.js"></script>
+<script src="js/enemies/foreman.js"></script>
+<script src="js/enemies/fireball.js"></script>
+<script src="js/player.js"></script>
+<script src="js/levels/sample.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
