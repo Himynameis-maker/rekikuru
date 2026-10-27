@@ -3,29 +3,41 @@ WC.Level=class{
   const rows=text.replace(/\r/g,'').split('\n').filter(r=>r.length);
   this.h=rows.length;this.w=Math.max(...rows.map(r=>r.length));
   this.floor=[];this.objs=new Map();this.spawns=[];this.player={x:1,y:1};
+  const at=(x,y)=>(rows[y]||'')[x]||' ',lad=c=>c=='L'||c=='H';
   rows.forEach((r,y)=>{this.floor[y]=[];for(let x=0;x<this.w;x++){
-   const ch=r[x]||' ';this.floor[y][x]=!' LH'.includes(ch);
-   const O=WC.Objects[ch],E=WC.Enemies[ch];
+   const ch=at(x,y),O=WC.Objects[ch],E=WC.Enemies[ch];
    if(O)this.objs.set(x+','+y,new O(x,y,ch));
    if(E)this.spawns.push({E,x,y});
-   if(ch=='P')this.player={x,y}}});
-  this.objs.forEach(o=>{if(o.kind=='drum'&&this.get(o.x,o.y+1)?.kind=='iron')this.floor[o.y][o.x]=false});
+   if(ch=='P')this.player={x,y};
+   // 地面(floor)はオブジェクトとは別レイヤー。オブジェクトが壊れても地面は残る。
+   //  ・梯子は上下の端のマスだけ地面を持つ(途中のマスは持たない)
+   //  ・鉄柱(I)の真上に載っているドラム缶・壁は、自前の地面を持たない(鉄柱ごと宙に浮いている)
+   //  ・左右端の列は全段が足場(1マス幅)。消せない(文字が空白でも足場になる)
+   this.floor[y][x]=x==0||x==this.w-1||ch!=' '&&(lad(ch)?!(lad(at(x,y-1))&&lad(at(x,y+1))):!('OWwV'.includes(ch)&&at(x,y+1)=='I'))}});
  }
  get(x,y){return this.objs.get(x+','+y)}
  del(x,y){this.objs.delete(x+','+y)}
  wrap(x){return(x+this.w)%this.w}
  ladder(x,y){const o=this.get(x,y);return!!(o&&o.isLadder)}
  blocked(x,y){const o=this.get(x,y);return!!(o&&o.blocks)}
- standable(x,y){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)}
+ // 立てるマスか。通行止めオブジェクト(ドラム缶)の真上も足場になる(bg=背景側の敵は無視)。
+ standable(x,y,bg){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)||(!bg&&this.blocked(x,y+1))}
+ // ドラム缶の上に立っているか。ドラム缶の天面は通常の床より少し低い。
+ onDrum(x,y){return y<this.h-1&&!this.floor[y][x]&&!this.ladder(x,y)&&this.blocked(x,y+1)}
+ // 梯子ではない普通の足場(床)のマスか
+ ground(x,y){return(y>=this.h-1||this.floor[y][x])&&!this.ladder(x,y)}
+ // 火の玉が飛ぶ段: 横幅の半分以上が地面の段と最下段
+ fireRows(){const r=[];for(let y=0;y<this.h;y++)if(y==this.h-1||this.floor[y].filter(Boolean).length*2>=this.w)r.push(y);return r}
  canStep(x,y,dx,dy,bg){
   const nx=this.wrap(x+dx),ny=y+dy;
   if(ny<0||ny>=this.h)return false;
   if(!bg&&this.blocked(nx,ny))return false;
+  if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // 段差: ドラム缶の上から周りの足場へは上がれない(降りるのはOK)→囲まれると詰む
   return dy?this.ladder(x,ny):true}
  dest(x,y,dx,dy,bg){ // 1歩+落下後のマス
   if(!this.canStep(x,y,dx,dy,bg))return null;
   const nx=this.wrap(x+dx);let ny=y+dy;
-  if(!dy)while(ny<this.h-1&&!this.standable(nx,ny))ny++;
+  if(!dy)while(ny<this.h-1&&!this.standable(nx,ny,bg))ny++;
   return[nx,ny]}
  step(sx,sy,gx,gy,bg){ // BFSで最初の一歩[dx,dy]を返す
   const seen=new Set([sx+','+sy]),q=[[sx,sy,null]];

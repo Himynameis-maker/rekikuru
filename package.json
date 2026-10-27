@@ -1,0 +1,11 @@
+{
+  "name": "rekikuru",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wrecking Crew-like (ブラウザゲーム。ビルド不要)",
+  "scripts": {
+    "context": "node tools/make-context.js",
+    "test": "node test/logic.test.js",
+    "test:e2e": "node test/e2e.js"
+  }
+}

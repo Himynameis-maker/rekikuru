@@ -1,0 +1,963 @@
+【このファイルの使い方】(AIへ)
+これは「Wrecking Crew-like」(ブラウザの2Dアクションゲーム)の開発引き継ぎ資料です。あなたはこの続きを開発します。
+1. 第1部の仕様書を最後まで読む(設計・確定仕様・作業ルールが書いてある。ここが一次資料)。
+2. 第3部の全ソースを読む。コードと仕様書が食い違ったらコードが正。直す前に必ず該当ファイルの現物を確認する。
+3. ユーザーの依頼は口語で曖昧なことが多い。解釈が割れる所は解釈を明記して実装し、返答の最後に一言確認する。
+4. 実行環境(Node/ブラウザ)があるなら、変更後に `npm test` を通し、動く一式を zip で返す。無いなら変更ファイルを全文で出す。
+5. 仕様を変えたら docs/SPEC.md も更新し、ユーザーに「npm run context で context.txt を作り直してね」と伝える。
+(ユーザー側: プロジェクト直下で `npm run context` を実行すると、このファイルが最新のソースから再生成されます)
+
+生成: 2026-10-27 14:20 JST / ファイル 32 個
+
+################################################################
+# 第1部: 仕様書 (docs/SPEC.md)
+################################################################
+# Wrecking Crew-like 仕様書(AI引き継ぎ用)
+
+このファイルは「ゲームを全く知らない新規チャット」が context.txt だけで開発を続けられるようにするための、
+**設計と確定仕様の一次資料**。コードと食い違ったらコードが正で、このファイルを直すこと。
+
+## 0. これは何か
+ファミコンの「レッキングクルー」風の2Dパズルアクション(ブラウザ、ビルド不要、依存なし、`index.html` を開くだけで動く)。
+ハンマーで壁・壊せる梯子を全部壊すとクリア。敵に触れるとミス(残機-1)。ステージエディタ(スマホ対応・タッチ操作あり)付き。
+所有者は日本語話者で、仕様を口語・短文で伝えてくる。曖昧な指示が多いので、**解釈が割れた所は解釈を明記して実装し、返答で一言確認する**。
+
+## 1. 作業ルール(AIへ)
+- 返答は日本語。結論と「何をどう直したか」を先に、短く。専門用語を並べない。
+- コードの作法: グローバル名前空間 `window.WC` のみ。ES modules / ビルド / 外部ライブラリは使わない。
+  既存の圧縮気味の書き方(1〜2文字の変数、1行に詰める)に合わせる。コメントは日本語で「なぜ」を書く。
+- 新しい `js/` ファイルを足したら **`index.html` の `<script>` に登録**する(読み込み順が依存順。第2章参照)。
+- 変更したら `npm test`(依存なし)を通す。ブラウザ確認が必要なら `npm run test:e2e`(playwright が要る)。
+  仕様を変えたらテストも更新する。見た目やプレイ感は実機で確認できないので、断定せず「確認できていない」と言う。
+- 仕様を変えたら **この SPEC.md を更新**し、最後に `npm run context` で context.txt を作り直す。
+- 納品は動く状態のプロジェクト一式を zip(フォルダ名 `rekikuru-main`)で返す。**zip の作り直し・添付忘れに注意**(過去にやらかした)。
+  コード実行環境が無い場合は、変更したファイルを全文で出す(差分ではなく)。
+
+## 2. ファイル構成と読み込み順
+`index.html` の script 順(上が先):
+```
+js/config.js            WC={Objects,Enemies,Levels}, WC.merge, WC.CONFIG(調整値), WC.DEFAULTS
+js/core/gfx.js          WC.Gfx 描画の差し替え口 + terrain()(背景〜オブジェクト描画。ゲームとエディタ共用)
+js/core/sound.js        WC.Sound.play(名前)。files に登録すると鳴る(今は無音)
+js/core/level.js        WC.Level ステージ文字列→地面レイヤー/オブジェクト/出現位置。通行・落下・経路探索
+js/core/actor.js        WC.Actor マス移動する全キャラの基底(移動補間・落下・異常落下・描画)
+js/objects/object.js    WC.Obj 基底 / WC.Load(鉄柱の上に載って落ちる物の共通処理)
+js/objects/wall.js      W w V 壁   |  ladder.js L H 梯子  |  drum.js O  |  iron.js I  |  bomb.js B  |  door.js D
+js/enemies/enemy.js     WC.Enemy 基底(扉に入る処理)
+js/enemies/chaser.js(1) fastchaser.js(4) runner.js(2) foreman.js(3) fireball.js(火の玉。Game側が生成)
+js/player.js            WC.Player
+js/levels/sample.js     WC.Levels.sample(サンプルステージ文字列)
+js/game.js              WC.Game ゲーム進行(状態・タイマー・当たり・火の玉出現・クリア判定・HUD描画)
+js/editor.js            WC.TOOLS(パレット定義) WC.Editor(グリッド編集・描画)
+js/params.js            WC.Params 設定スライダーの自動生成(WC.CONFIG の数値を全部出す)
+js/main.js              DOM配線・モード切替(title/edit/play)・入力・メインループ
+```
+プロジェクト直下のその他: `package.json`(`npm run context` / `npm test` / `npm run test:e2e`)、`docs/SPEC.md`(このファイル)、
+`tools/make-context.js`(context.txt の生成。index.html の script 順に全ソースを並べる。登録漏れの js は警告)、
+`test/`(`harness.js` vm 読み込み、`logic.test.js` ロジックテスト、`e2e.js` 実ブラウザ)、`context.txt`(生成物。手で編集しない)。
+`style.css` は画面固定レイアウト(ページはスクロールしない。canvas は JS で残り領域にフィット)。
+`body.className` が `title` / `edit` / `play` で、CSS がそれで表示を切り替える。
+
+## 3. 座標・地面・移動のモデル(最重要)
+- 1マス=32px(`CONFIG.tile`)。座標は (x,y)、y は下向き。ステージ=文字列の行の配列。幅 w=最長行(短い行は空白で埋める)。
+- 1マスに置けるオブジェクトは1つ(`Level.objs` は `"x,y"`→オブジェクトの Map)。
+- **キャラはマス(x,y)の「底の線」に足が着く**。つまり床の線は「そのマスの下端」に描く(`Gfx.fns.floor`)。
+  キャラが歩く段(床の段)と、その上の「空中の段」(梯子の途中)が交互に並ぶ。梯子の上下端は床の段にある。
+- **地面(`Level.floor[y][x]`)はオブジェクトとは別レイヤー**。オブジェクトが壊れても地面は残る。作られ方(`Level` コンストラクタ):
+  - 空白以外の文字は地面を持つ('=' だけでなく壁・ドラム缶・鉄柱・爆弾・扉・P・敵の文字も)。
+  - 梯子(L/H)は **上下の端のマスだけ** 地面を持つ(上にも下にも梯子があるマスは持たない)。
+  - 鉄柱 I の **真上** にある O/W/w/V は自前の地面を持たない(鉄柱ごと宙に載っている)。
+  - **左右端の列(x=0 と x=w-1)は全段が地面。消せない**(その文字が空白でも)。
+- `Level.standable(x,y,bg)` = 最下段 || 地面 || 梯子 || (bg以外で)真下が通行止めオブジェクト(ドラム缶の上に立てる)。
+  立てないマスにいるキャラは毎ステップ1マス落ちる(速い)。
+- 移動 `Level.canStep(x,y,dx,dy,bg)`:
+  - 縦は移動先に梯子が必須。横は自由(端はループ)。
+  - bg=false のキャラは `blocks` なオブジェクト(ドラム缶)に入れない。bg=true(裏側の敵=foreman)は無視。
+  - **段差**: ドラム缶の上(`onDrum`)にいると、横の「普通の床のマス(`ground`=地面があり梯子ではない)」へは上がれない。
+    降りる(空中へ出て落ちる)のは可。梯子マスへは移れる。
+- **左右ループ**: `tx` は折り返した後のマス、`rx` は端の外(-1〜w)まで連続して動く(`Actor.sync`)。
+  描画は `Actor.draw` が反対側にも半身を描く(火の玉は `nowrap` でループしない)。キャラ間の距離は `Game.near` が折り返しを考慮。
+- キャラの `x,y`=いるマス(移動中は出発マス、到着で更新)、`rx,ry`=描画/当たり用の連続座標、`t`=移動の進行 0→1。
+
+## 4. ステージ文字(エディタのパレット=`WC.TOOLS`)
+`=`床 / `W`壁1 `w`壁2 `V`壁3(HP=CONFIG.wall.hp) / `L`壊せる梯子(クリア条件) `H`壊せない梯子 / `O`ドラム缶 / `I`鉄柱 / `B`爆弾 / `D`扉 /
+`P`プレイヤー(1つだけ) / `1`追尾 `2`直進 `3`親方(裏側) `4`高速追尾 / ` `消す。
+クリア条件 = `needsBreak` なオブジェクト(壁・L梯子)が0個。
+
+## 5. オブジェクトと敵の挙動
+- **壁**: 背景オブジェクト(通行を妨げない)。立っているマスで叩くと HP-1。爆風でも -1。
+- **梯子 L**: 叩く/爆風で壊れ、上下の L に連鎖して壊れる(`breakInterval`)。掴まっていた敵は異常落下、プレイヤーはその場から真下へ落ちる。H は壊れない。
+- **ドラム缶 O**: 常に通行止めの1マス障害物。上から落ちてきたキャラはめり込まず上に立つ。
+- **鉄柱 I**: 背景。立っているマスで叩くと、**真上にドラム缶/壁が載っているときだけ**鉄柱が壊れて(地面は残る)、載っていた物が `fallDelay` 秒後に
+  「鉄柱が立っていた地面」まで落ちてそのマスに残る(1つ下の段ではない)。何も載っていない鉄柱は叩いても何も起きない。
+  落ちるドラム缶: 同じ列のプレイヤーは死亡、敵は撃破。落ちる壁: 無害・落下中は壊せない。着地先に別オブジェクトがあれば割れて消える。
+- **ドラム缶の上の「詰み」は仕様**: ドラム缶の天面は床より少し低い。穴(足場に挟まれたドラム缶の上)に降りると左右の足場へ上がれず出られない
+  (梯子が隣にあるか、片側が空いていれば出られる)。敵も同じ。詰んだら敵に倒されるのを待つだけで、救済処理は無い(意図通り)。
+- **爆弾 B**: 叩くと導火線 `fuse` 秒後に起爆、そのマスのキャラは異常落下(叩いた本人は方向入力で逃げれば免れる)。
+  隣接の壁・L梯子に1ダメージ、扉を開け、隣の爆弾に連鎖(`chainDelay`)。
+- **扉 D**: 叩くと `openTime` 秒開く。開いた扉に着いた敵(noDoor でない)は隠れる。全敵が隠れると強制的に扉が開き、敵が出てくる(`checkAllHidden`/`onExit`)。
+- **異常落下(`startAbn`)**: 床を無視して最下段まで速く落ちる(ドラム缶の上で止まる)→着いたら `fall.stun` 秒気絶し、速度 `fall.boost`×lv アップ(lv最大2)。プレイヤーは落下中ハンマー不可。
+- **追尾 1/4**: BFS(`Level.step`)で落下込みの最短経路。4は高速。**直進 2**: プレイヤー無視で一方向、梯子があれば1マス上り次は横へ、障害物で反転。
+- **親方 3(裏側の敵)**: 壁・ドラム缶を無視(bg)して追尾。同じマスに来ると `windup` 秒後に殴る → **プレイヤーは異常落下するだけでミスにはならない**
+  (落下中・気絶中は殴られない)。触れても無害(harmless)。プレイヤーがハンマーで殴ると親方が異常落下。ときどきサボる(`lazy`)。
+- **火の玉**: `Game` が `interval` 秒ごとに、左右端のどちらかから、**横幅の半分以上が地面の段(と最下段)**のランダムな1段に出し、反対端まで直進(ループしない)。触れるとミス。
+- ミス: 追尾/直進/火の玉に触れる(`near<.65`)、落ちるドラム缶の下。残機 `player.lives`=3、0でゲームオーバー。
+
+## 6. ゲーム進行(`WC.Game`)
+- 状態 `ready`(1.5秒)→`play`→`dead`(1.2秒後に同ステージをやり直し or `over`)/`clear`(2秒後)。
+- `later(秒,fn)` が唯一のタイマー。`load()` で `timers` を捨てて `epoch++`(古い予約が残らない)。`update` はタイマー実行中に epoch が変わったら即 return。
+- `onOver` / `onClear` は main.js が設定。テスト中(エディタの「テスト」)はクリアでエディタへ戻る。通常プレイはクリアで同じステージを最初から(残機は引き継ぎ)。
+- **重要**: `onOver/onClear` は `Game.update` の中で呼ばれ、main.js の `setMode` が `G=null` にする。メインループは `update` の後に `G` を再確認してから描画し、
+  `requestAnimationFrame` を最初に予約する(ここを崩すと「2回目のプレイで画面が真っ暗」になる。過去のバグ)。
+
+## 7. 調整値 `WC.CONFIG`(config.js)
+`player{speed,hammerTime,lives}` `wall{hp,colors}` `door{openTime,stunAll,minHide,safe}` `drum{fallDelay,fallSpeed}`(壁の落下にも使う)
+`bomb{fuse,chainDelay}` `ladder{breakInterval}` `fall{speed,stun,boost}` `enemies{chaser,fastchaser,runner,foreman,fireball{speed,interval,...}}`。
+数値は設定画面にスライダーで自動表示される(`params.js`)。新しい数値を足せば自動で出る。`WC.DEFAULTS` は初期値のコピー。保存は localStorage キー `wc1`。
+
+## 8. 拡張ポイント
+- 見た目: `WC.Gfx.set('chaser',(c,x,y,s,self)=>c.drawImage(...))`。種類名= `drum iron wall ladder door floor player chaser runner foreman fastchaser fireball bomb`。
+- 音: `WC.Sound.files.hit='hit.wav'`。イベント名= hit wall ladder bomb door drumHit drumLand fall die clear。
+- 新しいオブジェクト: `WC.Objects['文字']=class extends WC.Obj`(`update(dt,g)` `onHit(g,by)` `onBlast(g)` `blocks` `needsBreak`)+ `WC.TOOLS` に追加。
+- 新しい敵: `WC.Enemies['数字']=class extends WC.Enemy`(`decide(g)`→`[dx,dy]|null`)+ `WC.CONFIG.enemies` に値 + `WC.SPR`/`WC.TOOLS`。
+
+## 9. 経緯と確定済みの判断(所有者の指示と、そこでの解釈)
+- ドラム缶に「オブジェクトとしての判定」を → 横から入れないだけでなく、落下・異常落下でもめり込ませない(上に立つ)。
+- 「ドラム缶は低いので足場の横にあると出られず詰む、を仕様に」→ 第3章の段差ルール。
+- 梯子・鉄が地面と同化していた(梯子を壊すと床が消えた)→ 地面を別レイヤーに。
+- 鉄柱を壊すとドラム缶が1つ下の段まで落ちていた → 鉄柱の地面に着地。鉄柱は壁も載せられ、壁も落ちてくる(壁を無害にしたのはAIの判断)。
+- 裏側の敵に殴られたらミスではなく異常落下。
+- 火が出ない件: 出現段の条件が厳しすぎた(サンプルは1段のみ)+最初の1発が10秒後。→ 段の条件を緩和。間隔は設定で変更可。
+- 左右端は全段足場(消せない)。左右ループはシームレス(半身が反対側から出てくる)。
+- 全消しボタンが存在しない関数を呼んでいた → 修正。
+
+## 10. 既知の癖・未確定
+- サンプルステージの8行目だけ21文字で、他は20文字(幅=21になり、右端の列は8行目以外は空白)。左右端が常に足場になったので実害は小さいが、直してはいない。
+- 通常プレイでクリアすると同じステージを繰り返す(タイトルへは戻らない)。意図かどうか未確認。
+- 見た目は仮(単色の四角)。左右端の足場も通常の床の線と同じ見た目。
+- 最後に実機(スマホ/ブラウザ)で遊んだ確認は取れていない。ロジックはテストで確認済み。
+
+## 11. テスト
+- `npm test` … `test/logic.test.js`。ブラウザ無しで `vm` にゲームを読み込み(`test/harness.js`、乱数は固定)、ゲームロジックを検証する。
+  キャラの操作は `g.keys={right:true}` で再現し、`g.update(1/60)` を回す。止めたいマスの手前でキーを離すこと(到着の瞬間に次の一歩を決めるため)。
+  テストでは `g.state='play'; g.timers=[]; g.enemies=[]` で準備待ちを飛ばす。壊すものが1つも無いステージは即クリア扱いになるので壁を1つ置く。
+- `npm run test:e2e` … `test/e2e.js`。playwright(+ chromium)が必要。2回目のプレイ・エディタの端・全消しを実ブラウザで確認。
+
+################################################################
+# 第2部: ファイル一覧(第3部の掲載順)
+################################################################
+docs/SPEC.md  (第1部に掲載)
+index.html  (40行)
+style.css  (32行)
+package.json  (11行)
+js/config.js  (22行)
+js/core/gfx.js  (15行)
+js/core/sound.js  (3行)
+js/core/level.js  (50行)
+js/core/actor.js  (27行)
+js/objects/object.js  (22行)
+js/objects/wall.js  (7行)
+js/objects/ladder.js  (9行)
+js/objects/drum.js  (7行)
+js/objects/iron.js  (8行)
+js/objects/bomb.js  (15行)
+js/objects/door.js  (7行)
+js/enemies/enemy.js  (8行)
+js/enemies/chaser.js  (5行)
+js/enemies/fastchaser.js  (1行)
+js/enemies/runner.js  (9行)
+js/enemies/foreman.js  (13行)
+js/enemies/fireball.js  (6行)
+js/player.js  (16行)
+js/levels/sample.js  (16行)
+js/game.js  (45行)
+js/editor.js  (37行)
+js/params.js  (14行)
+js/main.js  (45行)
+test/e2e.js  (36行)
+test/harness.js  (14行)
+test/logic.test.js  (109行)
+tools/make-context.js  (67行)
+
+################################################################
+# 第3部: 全ソース
+################################################################
+===== FILE: index.html =====
+<!doctype html><html lang="ja"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Wrecking Crew-like</title><link rel="stylesheet" href="style.css">
+<body class="title">
+<div id="top"><button id="bBack" class="np">◀ もどる</button><span id="msg"></span></div>
+<div id="stage"><canvas id="cv" width="640" height="480"></canvas>
+ <div id="titlebox"><h1>WRECKING<br>CREW-like</h1><button id="bPlay">▶ あそぶ</button><button id="bEdit">✎ つくる</button></div></div>
+<div id="pad" class="pl"><div id="dpad"><i>▲</i><i>◀</i><i>▶</i><i>▼</i></div><div id="hbtn">🔨</div></div>
+<div id="editor" class="ed">
+ <div id="palette"></div>
+ <div class="row"><button id="bTest">▶ テスト</button><button id="bSave">保存</button><button id="bLoad">読込</button><button id="bClear">全消し</button><button id="bParam">⚙ 設定</button><button id="bCode">コード</button>
+  <label>列 <input id="cw" type="number" min="8" max="40"></label><label>行 <input id="ch" type="number" min="6" max="30"></label></div>
+</div>
+<div id="sheet" hidden><div class="sbox"><button id="sClose">✕ 閉じる</button>
+ <section id="sParam"><div id="pbody"></div><button id="pReset">初期値に戻す</button></section>
+ <section id="sCode"><p>マップコード（コピー/貼り付け）</p><textarea id="lv"></textarea><button id="lvLoad">読み込む</button></section></div></div>
+<script src="js/config.js"></script>
+<script src="js/core/gfx.js"></script>
+<script src="js/core/sound.js"></script>
+<script src="js/core/level.js"></script>
+<script src="js/core/actor.js"></script>
+<script src="js/objects/object.js"></script>
+<script src="js/objects/wall.js"></script>
+<script src="js/objects/ladder.js"></script>
+<script src="js/objects/drum.js"></script>
+<script src="js/objects/iron.js"></script>
+<script src="js/objects/bomb.js"></script>
+<script src="js/objects/door.js"></script>
+<script src="js/enemies/enemy.js"></script>
+<script src="js/enemies/chaser.js"></script>
+<script src="js/enemies/fastchaser.js"></script>
+<script src="js/enemies/runner.js"></script>
+<script src="js/enemies/foreman.js"></script>
+<script src="js/enemies/fireball.js"></script>
+<script src="js/player.js"></script>
+<script src="js/levels/sample.js"></script>
+<script src="js/game.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/params.js"></script>
+<script src="js/main.js"></script>
+
+===== FILE: style.css =====
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overscroll-behavior:none}
+/* 画面固定レイアウト: ページはスクロールしない。キャンバスは残り領域にJSでフィット */
+body{position:fixed;inset:0;max-width:720px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;background:#111;color:#ddd;font:14px sans-serif;padding:6px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+button{background:#333;color:#eee;border:1px solid #555;border-radius:8px;padding:8px 12px;font-size:14px;touch-action:manipulation}
+#top,#pad,#editor{flex:none}
+#top{min-height:36px;display:flex;gap:8px;align-items:center}
+#stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{background:#000;image-rendering:pixelated;display:block}
+body.edit #cv,body.play #cv{touch-action:none}
+body:not(.edit) .ed,body:not(.play) .pl,body:not(.title) #titlebox,body.title .np{display:none}
+#titlebox{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#000a}
+#titlebox h1{color:#fc3;text-align:center;margin:0 0 12px;font-size:34px;letter-spacing:2px}
+#titlebox button{width:180px;font-size:20px;padding:12px}
+#pad{display:flex;justify-content:space-between;align-items:center;padding:10px;touch-action:none}
+#dpad{width:150px;height:150px;border-radius:50%;background:#2a2a2a;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);place-items:center;touch-action:none}
+#dpad i{font-style:normal;color:#999;font-size:22px}
+#dpad i:nth-child(1){grid-area:1/2}#dpad i:nth-child(2){grid-area:2/1}#dpad i:nth-child(3){grid-area:2/3}#dpad i:nth-child(4){grid-area:3/2}
+#hbtn{width:110px;height:110px;border-radius:50%;background:#c33;display:flex;align-items:center;justify-content:center;font-size:44px;touch-action:none}
+#palette{display:flex;gap:4px;overflow-x:auto;padding:4px 0;touch-action:pan-x}
+#palette button{flex:none;padding:3px;width:54px;font-size:10px;line-height:1.2}
+#palette button.sel{outline:2px solid #fc3}
+#palette canvas{width:36px;height:36px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.row input{width:56px;background:#222;color:#ddd;border:1px solid #555;padding:6px}
+#sheet{position:fixed;inset:0;background:#000d;display:flex;justify-content:center;z-index:9}
+#sheet[hidden]{display:none}
+.sbox{width:100%;max-width:720px;overflow:auto;padding:12px;touch-action:pan-y}
+#sheet[data-s=param] #sCode,#sheet[data-s=code] #sParam{display:none}
+details details{margin-left:12px}
+#pbody label{display:flex;gap:8px;align-items:center;margin:6px 0}#pbody input{flex:1}
+textarea{width:100%;height:50vh;font:12px monospace;background:#222;color:#ddd;user-select:text;-webkit-user-select:text}
+
+===== FILE: package.json =====
+{
+  "name": "rekikuru",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wrecking Crew-like (ブラウザゲーム。ビルド不要)",
+  "scripts": {
+    "context": "node tools/make-context.js",
+    "test": "node test/logic.test.js",
+    "test:e2e": "node test/e2e.js"
+  }
+}
+
+===== FILE: js/config.js =====
+// 全パラメーター。速度の単位は「マス/秒」、時間は秒。カスタムモードのJSONで上書き可。
+window.WC={Objects:{},Enemies:{},Levels:{}};
+WC.merge=(a,b)=>{for(const k in b)(b[k]&&typeof b[k]=='object'&&!Array.isArray(b[k]))?WC.merge(a[k]??(a[k]={}),b[k]):a[k]=b[k];return a};
+WC.CONFIG={
+ tile:32,
+ colors:{floor:'#2a6',edge:'#39f',bottom:'#d83'},  // 通常/左右ループ端/最下段の足場色
+ player:{speed:5,hammerTime:.28,lives:3},
+ wall:{hp:{W:1,w:2,V:3},colors:['','#aaa','#d96','#c33']},
+ door:{openTime:4,stunAll:4,minHide:1.5,safe:.6},
+ drum:{fallDelay:.8,fallSpeed:3},
+ bomb:{fuse:.5,chainDelay:.25},
+ ladder:{breakInterval:.08},
+ fall:{speed:14,stun:3,boost:.15},        // 異常落下: 速度/スタン秒/復帰後の加速(最大2段階)
+ enemies:{
+  chaser:{speed:3.2},
+  fastchaser:{speed:4},
+  runner:{speed:3.6},
+  foreman:{speed:5,lazy:.35,windup:.5,noDoor:true,harmless:true},
+  fireball:{speed:4.5,interval:10,noDoor:true}
+ }
+};
+WC.DEFAULTS=JSON.parse(JSON.stringify(WC.CONFIG));
+
+===== FILE: js/core/gfx.js =====
+// 描画の差し替え口。例: WC.Gfx.set('chaser',(c,x,y,s,self)=>c.drawImage(img,x,y,s,s))
+WC.Gfx={fns:{},set(k,f){this.fns[k]=f},draw(k,c,x,y,s,st){(this.fns[k]||this.fns._)(c,x,y,s,st||{})}};
+const R=col=>(c,x,y,s)=>{c.fillStyle=col;c.fillRect(x+3,y+3,s-6,s-6)};
+WC.Gfx.fns._=R('#f0f');
+Object.entries({player:'#e83',chaser:'#e4e',runner:'#4c4',foreman:'#fa0',fastchaser:'#f6a',fireball:'#f50',drum:'#a52',hdrum:'#c73',bomb:'#999'}).forEach(([k,v])=>WC.Gfx.fns[k]=R(v));
+WC.Gfx.fns.floor=(c,x,y,s)=>{c.fillStyle='#2a6';c.fillRect(x,y+s-5,s,5)};
+WC.Gfx.fns.wall=(c,x,y,s,o)=>{c.fillStyle=WC.CONFIG.wall.colors[o.hp]||'#fff';c.fillRect(x,y+3,s,s-6)};
+WC.Gfx.fns.ladder=(c,x,y,s,o)=>{c.fillStyle=o.needsBreak?'#ec6':'#89b';c.fillRect(x+8,y,3,s);c.fillRect(x+s-11,y,3,s);for(let i=4;i<s;i+=8)c.fillRect(x+8,y+i,s-16,2)};
+WC.Gfx.fns.door=(c,x,y,s,o)=>{c.fillStyle=o.isOpen?'#142':'#4a6';c.fillRect(x+4,y+2,s-8,s-4)};
+// 背景〜オブジェクトの描画(ゲームとエディタ共用)。梯子の上下端には足場を描く。
+WC.Gfx.terrain=(c,L,s)=>{
+ for(let y=0;y<L.h;y++)for(let x=0;x<L.w;x++)
+  if(L.floor[y][x]||y==L.h-1||(L.ladder(x,y)&&!(L.ladder(x,y-1)&&L.ladder(x,y+1))))WC.Gfx.draw('floor',c,x*s,y*s,s);
+ L.objs.forEach(o=>WC.Gfx.draw(o.kind,c,o.x*s,(o.fy??o.y)*s,s,o))};
+WC.Gfx.fns.iron=(c,x,y,s)=>{c.fillStyle='#778';c.fillRect(x+12,y,8,s)};
+
+===== FILE: js/core/sound.js =====
+// WC.Sound.files.hit='hit.wav' のように登録すると鳴る。
+// イベント名: hit wall ladder bomb door drumHit drumLand fall die clear
+WC.Sound={files:{},play(n){const f=this.files[n];if(f)new Audio(f).play().catch(()=>{})}};
+
+===== FILE: js/core/level.js =====
+WC.Level=class{
+ constructor(text){
+  const rows=text.replace(/\r/g,'').split('\n').filter(r=>r.length);
+  this.h=rows.length;this.w=Math.max(...rows.map(r=>r.length));
+  this.floor=[];this.objs=new Map();this.spawns=[];this.player={x:1,y:1};
+  const at=(x,y)=>(rows[y]||'')[x]||' ',lad=c=>c=='L'||c=='H';
+  rows.forEach((r,y)=>{this.floor[y]=[];for(let x=0;x<this.w;x++){
+   const ch=at(x,y),O=WC.Objects[ch],E=WC.Enemies[ch];
+   if(O)this.objs.set(x+','+y,new O(x,y,ch));
+   if(E)this.spawns.push({E,x,y});
+   if(ch=='P')this.player={x,y};
+   // 地面(floor)はオブジェクトとは別レイヤー。オブジェクトが壊れても地面は残る。
+   //  ・梯子は上下の端のマスだけ地面を持つ(途中のマスは持たない)
+   //  ・鉄柱(I)の真上に載っているドラム缶・壁は、自前の地面を持たない(鉄柱ごと宙に浮いている)
+   //  ・左右端の列は全段が足場(1マス幅)。消せない(文字が空白でも足場になる)
+   this.floor[y][x]=x==0||x==this.w-1||ch!=' '&&(lad(ch)?!(lad(at(x,y-1))&&lad(at(x,y+1))):!('OWwV'.includes(ch)&&at(x,y+1)=='I'))}});
+ }
+ get(x,y){return this.objs.get(x+','+y)}
+ del(x,y){this.objs.delete(x+','+y)}
+ wrap(x){return(x+this.w)%this.w}
+ ladder(x,y){const o=this.get(x,y);return!!(o&&o.isLadder)}
+ blocked(x,y){const o=this.get(x,y);return!!(o&&o.blocks)}
+ // 立てるマスか。通行止めオブジェクト(ドラム缶)の真上も足場になる(bg=背景側の敵は無視)。
+ standable(x,y,bg){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)||(!bg&&this.blocked(x,y+1))}
+ // ドラム缶の上に立っているか。ドラム缶の天面は通常の床より少し低い。
+ onDrum(x,y){return y<this.h-1&&!this.floor[y][x]&&!this.ladder(x,y)&&this.blocked(x,y+1)}
+ // 梯子ではない普通の足場(床)のマスか
+ ground(x,y){return(y>=this.h-1||this.floor[y][x])&&!this.ladder(x,y)}
+ // 火の玉が飛ぶ段: 横幅の半分以上が地面の段と最下段
+ fireRows(){const r=[];for(let y=0;y<this.h;y++)if(y==this.h-1||this.floor[y].filter(Boolean).length*2>=this.w)r.push(y);return r}
+ canStep(x,y,dx,dy,bg){
+  const nx=this.wrap(x+dx),ny=y+dy;
+  if(ny<0||ny>=this.h)return false;
+  if(!bg&&this.blocked(nx,ny))return false;
+  if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // 段差: ドラム缶の上から周りの足場へは上がれない(降りるのはOK)→囲まれると詰む
+  return dy?this.ladder(x,ny):true}
+ dest(x,y,dx,dy,bg){ // 1歩+落下後のマス
+  if(!this.canStep(x,y,dx,dy,bg))return null;
+  const nx=this.wrap(x+dx);let ny=y+dy;
+  if(!dy)while(ny<this.h-1&&!this.standable(nx,ny,bg))ny++;
+  return[nx,ny]}
+ step(sx,sy,gx,gy,bg){ // BFSで最初の一歩[dx,dy]を返す
+  const seen=new Set([sx+','+sy]),q=[[sx,sy,null]];
+  for(let i=0;i<q.length;i++){const[x,y,f]=q[i];
+   if(x==gx&&y==gy&&f)return f;
+   for(const d of[[0,-1],[0,1],[-1,0],[1,0]]){
+    const n=this.dest(x,y,d[0],d[1],bg);if(!n)continue;
+    const k=n[0]+','+n[1];if(seen.has(k))continue;seen.add(k);q.push([n[0],n[1],f||d])}}
+  return null}
+};
+
+===== FILE: js/core/actor.js =====
+// マス移動する全キャラの基底。サブクラスは decide(g)→[dx,dy]|null を実装。
+WC.Actor=class{
+ constructor(x,y,speed){Object.assign(this,{x,y,tx:x,ty:y,rx:x,ry:y,t:1,speed,dir:1,stun:0,busy:0,lv:0,abn:false,fast:false,hidden:false})}
+ spd(){return this.abn||this.fast?WC.CONFIG.fall.speed:this.speed*(1+WC.CONFIG.fall.boost*this.lv)}
+ go(x,y,fast=false){this.tx=x;this.ty=y;this.t=0;this.fast=fast}
+ sync(){let d=this.tx-this.x;if(Math.abs(d)>1)d=d>0?-1:1; // 左右端をまたぐ移動は端の外側(-1 や w)へ連続して動く(描画側で反対側にも半身を出す)
+  this.rx=this.x+d*this.t;this.ry=this.y+(this.ty-this.y)*this.t}
+ settle(){if(this.t<1){if(this.t>=.5){this.x=this.tx;this.y=this.ty}this.tx=this.x;this.ty=this.y;this.t=1;this.sync()}}
+ startAbn(){if(this.abn||this.hidden)return;this.settle();this.abn=true;this.fast=true;WC.Sound.play('fall')}
+ arrive(g){}
+ decide(g){return null}
+ update(dt,g){
+  if(this.stun>0){this.stun-=dt;return}
+  if(this.hidden){if(this.exitAfter)this.exit(g);return}
+  if(this.busy>0){this.busy-=dt;return}
+  if(this.t<1){this.t=Math.min(1,this.t+dt*this.spd());this.sync();if(this.t<1)return;this.x=this.tx;this.y=this.ty;this.sync();this.arrive(g)}
+  if(!this.hidden)this.next(g)}
+ next(g){const L=g.level; // 落下はドラム缶にめり込まず、その上で止まる(背景側の敵は無視)
+  if(this.abn){if(this.y<L.h-1&&(this.bg||!L.blocked(this.x,this.y+1)))this.go(this.x,this.y+1,true);else{ this.abn=false;this.fast=false;this.stun=WC.CONFIG.fall.stun;this.lv=Math.min(2,this.lv+1)}return}
+  if(!L.standable(this.x,this.y,this.bg)&&this.y<L.h-1){this.go(this.x,this.y+1,true);return}
+  const d=this.decide(g);if(d)this.go(L.wrap(this.x+d[0]),this.y+d[1])}
+ // 左右端をまたぐとき、はみ出した半身を反対側の端にも描く(シームレスなループ)
+ draw(c,s){if(this.hidden)return;const W=c.canvas.width/s;c.globalAlpha=this.stun>0?.5:1;
+  for(const o of this.nowrap?[0]:[0,-W,W]){const px=this.rx+o;if(px>-1&&px<W)this.paint(c,s,px,this.ry)}
+  c.globalAlpha=1}
+ paint(c,s,px,py){WC.Gfx.draw(this.name,c,px*s,py*s,s,this)}
+};
+
+===== FILE: js/objects/object.js =====
+// ステージ上オブジェクト基底。blocks=通行止め needsBreak=クリア条件 onHit=ハンマー onBlast=爆風
+WC.Obj=class{constructor(x,y,kind){this.x=x;this.y=y;this.kind=kind}};
+
+// 鉄柱(I)の上に載せられるオブジェクト(ドラム缶・壁)の共通処理。
+// 鉄柱が壊されると fallDelay 秒後に落下を始め、「鉄柱が立っていた地面」まで落ちて、そのマスに残る。
+// 着地先に別のオブジェクトがあると割れて消える。落下中に重なったキャラへの効果は crush() で決める。
+// st: 0=載っている 1=落下待ち 2=落下中 3=着地済み
+WC.Load=class extends WC.Obj{
+ constructor(x,y,kind){super(x,y,kind);this.fy=y;this.st=0;this.solid=false}
+ release(g){if(this.st==0){this.st=1;this.t=WC.CONFIG.drum.fallDelay;WC.Sound.play('drumHit')}}
+ groundY(L){let y=this.y+1;while(y<L.h-1&&!L.floor[y][this.x])y++;return y}
+ crush(g,a){}
+ update(dt,g){const L=g.level;
+  if(this.st==1){this.t-=dt;if(this.t>0)return;this.st=2;this.blocks=false;this.ty=this.groundY(L)}
+  if(this.st!=2)return;
+  this.fy=Math.min(this.ty,this.fy+WC.CONFIG.drum.fallSpeed*dt);
+  g.actors().forEach(a=>{if((a.x==this.x||(a.t<1&&a.tx==this.x))&&Math.abs(a.ry-this.fy)<.7)this.crush(g,a)});
+  if(this.fy<this.ty)return;
+  L.del(this.x,this.y);
+  if(L.get(this.x,this.ty)){this.st=4;return}
+  this.y=this.ty;this.fy=this.ty;L.objs.set(this.x+','+this.y,this);this.blocks=this.solid;this.st=3;WC.Sound.play('drumLand')}
+};
+
+===== FILE: js/objects/wall.js =====
+// 壁は背景オブジェクト。通行は妨げない。プレイヤーが立っているマスの壁をハンマーで壊す。
+// 鉄柱(I)の上にも載せられる。鉄柱を壊すと壁が落ちてきて、鉄柱が立っていた地面に残る(落下中の壁は壊せない・無害)。
+['W','w','V'].forEach(ch=>WC.Objects[ch]=class extends WC.Load{
+ constructor(x,y){super(x,y,'wall');this.hp=WC.CONFIG.wall.hp[ch];this.needsBreak=true}
+ onHit(g){if(this.st==1||this.st==2)return;this.hp--;WC.Sound.play('wall');if(this.hp<=0)g.level.del(this.x,this.y)}
+ onBlast(g){this.onHit(g)}
+});
+
+===== FILE: js/objects/ladder.js =====
+['L','H'].forEach(ch=>WC.Objects[ch]=class extends WC.Obj{
+ constructor(x,y){super(x,y,'ladder');this.isLadder=true;this.needsBreak=ch=='L'}
+ onHit(g){if(this.needsBreak)this.brk(g)}
+ onBlast(g){this.onHit(g)}
+ brk(g){const L=g.level;if(L.get(this.x,this.y)!==this)return;
+  L.del(this.x,this.y);WC.Sound.play('ladder');
+  g.actors().forEach(a=>{if(a.x==this.x&&a.y==this.y){a.settle();if(a!==g.player)a.startAbn()}}); // 掴まっていた敵は異常落下、プレイヤーはその場から真下へ
+  [-1,1].forEach(d=>g.later(WC.CONFIG.ladder.breakInterval,()=>{const o=L.get(this.x,this.y+d);o&&o.isLadder&&o.needsBreak&&o.brk(g)}))}
+});
+
+===== FILE: js/objects/drum.js =====
+// O: ドラム缶。常に当たり判定のある1マス分の障害物(横からも縦からも入れない。上から落ちてきたキャラは上に乗る)。
+// 鉄柱(I)の上に載せると、鉄柱を叩いて壊したとき fallDelay 秒後に、鉄柱が立っていた地面へ落ちて、通行止めの障害物としてそこに残る。
+// 落下中は同じ列にいるプレイヤーは死亡、敵は閉じ込め(撃破)。
+WC.Objects.O=class extends WC.Load{
+ constructor(x,y){super(x,y,'drum');this.solid=this.blocks=true}
+ crush(g,a){a===g.player?g.killPlayer():a.trap()}
+};
+
+===== FILE: js/objects/iron.js =====
+// I: 鉄柱(背景。通行を妨げない。地面とは別物なので壊れても地面は残る)。
+// 立っているマスで叩くと、真上にドラム缶・壁が載っている場合に限って鉄柱が壊れ、載っていた物が落ちる。
+// 何も載っていない鉄柱はただの背景。
+WC.Objects.I=class extends WC.Obj{
+ constructor(x,y){super(x,y,'iron')}
+ onHit(g){const L=g.level,d=L.get(this.x,this.y-1);
+  if(d&&d.release&&d.st==0){L.del(this.x,this.y);d.release(g)}}
+};
+
+===== FILE: js/objects/bomb.js =====
+// 爆弾: 叩く(または連鎖)で点火→起爆。起爆時、そのマスにいるキャラは全員異常落下。
+// ただし叩いた本人は、点火から起爆までの猶予(CONFIG.bomb.fuse)の間に方向入力すれば巻き込まれない。
+// 起爆時、隣接(上下左右)の壁・壊せる梯子を1ダメージ分破壊、扉を開き、隣の爆弾を連鎖点火。
+WC.Objects.B=class extends WC.Obj{
+ constructor(x,y){super(x,y,'bomb');this.lit=false}
+ onHit(g,by){this.light(WC.CONFIG.bomb.fuse,true)}
+ onBlast(g){this.light(WC.CONFIG.bomb.chainDelay,false)}
+ light(t,byPlayer){if(this.lit)return;this.lit=true;this.t=t;this.byPlayer=byPlayer;this.escaped=false}
+ update(dt,g){if(!this.lit)return;
+  const k=g.keys;if(this.byPlayer&&(k.left||k.right||k.up||k.down))this.escaped=true;
+  this.t-=dt;if(this.t>0)return;
+  const L=g.level;L.del(this.x,this.y);WC.Sound.play('bomb');
+  g.actors().forEach(a=>{if(a.x==this.x&&a.y==this.y&&!(a===g.player&&this.escaped))a.startAbn()});
+  for(const d of[[1,0],[-1,0],[0,1],[0,-1]]){const o=L.get(L.wrap(this.x+d[0]),this.y+d[1]);o&&o.onBlast&&o.onBlast(g)}}
+};
+
+===== FILE: js/objects/door.js =====
+WC.Objects.D=class extends WC.Obj{
+ constructor(x,y){super(x,y,'door');this.open=0;this.force=false}
+ get isOpen(){return this.open>0||this.force}
+ onHit(g){this.open=WC.CONFIG.door.openTime;WC.Sound.play('door')}
+ onBlast(g){this.onHit(g)}
+ update(dt){if(this.open>0)this.open-=dt}
+};
+
+===== FILE: js/enemies/enemy.js =====
+// 敵基底。CONFIG.enemies[name] を this.cfg に持つ。扉に入る処理もここ。
+WC.Enemy=class extends WC.Actor{
+ constructor(x,y,name){const c=WC.CONFIG.enemies[name];super(x,y,c.speed);this.name=name;this.cfg=c;this.noDoor=!!c.noDoor;this.harmless=!!c.harmless}
+ arrive(g){const d=g.level.get(this.x,this.y);
+  if(!this.noDoor&&!this.abn&&d&&d.kind=='door'&&d.isOpen){this.hidden=true;this.door=d;g.checkAllHidden()}}
+ exit(g){this.hidden=false;this.door=null;this.exitAfter=false;g.onExit()}
+ trap(){this.dead=true}
+};
+
+===== FILE: js/enemies/chaser.js =====
+// 1: 追尾。BFSで最短経路(落下含む)を選ぶ。
+WC.Enemies['1']=class extends WC.Enemy{
+ constructor(x,y,n='chaser'){super(x,y,n);this.bg=false}
+ decide(g){const p=g.player;return g.level.step(this.x,this.y,p.x,p.y,this.bg)}
+};
+
+===== FILE: js/enemies/fastchaser.js =====
+WC.Enemies['4']=class extends WC.Enemies['1']{constructor(x,y){super(x,y,'fastchaser')}};
+
+===== FILE: js/enemies/runner.js =====
+// 2: プレイヤー無視で一方向へ。梯子があれば優先して1マス上り、次は必ず横へ。壁で反転。
+WC.Enemies['2']=class extends WC.Enemy{
+ constructor(x,y){super(x,y,'runner');this.dir=Math.random()<.5?-1:1}
+ decide(g){const L=g.level;
+  if(!this.side&&L.canStep(this.x,this.y,0,-1)){this.side=true;return[0,-1]}
+  this.side=false;
+  if(!L.canStep(this.x,this.y,this.dir,0))this.dir*=-1;
+  return L.canStep(this.x,this.y,this.dir,0)?[this.dir,0]:null}
+};
+
+===== FILE: js/enemies/foreman.js =====
+// 3: 背景側の敵。壁を無視して接近、同じマスに来ると windup 秒後に殴る。
+// 殴られたプレイヤーは異常落下するだけでミスにはならない(落下中・気絶中は殴られない)。ハンマーで敵側も異常落下。
+WC.Enemies['3']=class extends WC.Enemies['1']{
+ constructor(x,y){super(x,y,'foreman');this.bg=true}
+ onHammer(){this.startAbn()}
+ decide(g){const p=g.player,c=this.cfg;
+  if(p.y==this.y&&p.x==this.x){
+   this.busy=c.windup+.3;
+   g.later(c.windup,()=>{if(!this.dead&&!this.abn&&this.stun<=0&&!p.abn&&p.stun<=0&&p.y==this.y&&p.x==this.x)p.startAbn()});
+   return null}
+  if(Math.random()<c.lazy){this.busy=.4;return null}
+  return super.decide(g)}
+};
+
+===== FILE: js/enemies/fireball.js =====
+// 5: ファイヤーボール。Game側のタイマーで左右端から出現し反対端で消える。
+WC.Fireball=class extends WC.Enemy{
+ constructor(x,y,dir){super(x,y,'fireball');this.dir=dir;this.nowrap=true}
+ update(dt,g){this.rx+=this.dir*this.speed*dt;this.x=Math.round(this.rx);if(this.rx<-.6||this.rx>g.level.w-.4)this.dead=true}
+ startAbn(){} trap(){}
+};
+
+===== FILE: js/player.js =====
+WC.Player=class extends WC.Actor{
+ constructor(x,y){super(x,y,WC.CONFIG.player.speed);this.name='player'}
+ spd(){return this.abn||this.fast?WC.CONFIG.fall.speed:this.speed}
+ update(dt,g){const L=g.level,mid=L.ladder(this.x,this.y-1)&&L.ladder(this.x,this.y+1);
+  // 画面奥(立っているマス)を殴る。梯子の途中では振れない。
+  if(g.keys.hit&&this.t>=1&&this.busy<=0&&this.stun<=0&&!this.abn&&!mid){
+   this.busy=WC.CONFIG.player.hammerTime;g.hit(this.x,this.y,this)}
+  super.update(dt,g)}
+ decide(g){const k=g.keys,L=g.level,dx=(k.right?1:0)-(k.left?1:0),dy=(k.down?1:0)-(k.up?1:0);
+  if(dx)this.dir=dx;
+  if(dy&&L.canStep(this.x,this.y,0,dy))return[0,dy];
+  if(dx&&L.canStep(this.x,this.y,dx,0))return[dx,0];
+  return null}
+ trap(){}
+ paint(c,s,px,py){super.paint(c,s,px,py);if(this.busy>0){c.fillStyle='#ccc';c.fillRect((px+this.dir*.5+.3)*s,(py+.1)*s,s*.4,s*.3)}}
+};
+
+===== FILE: js/levels/sample.js =====
+WC.Levels.sample=[
+"                    ",
+"                    ",
+"=WW==L=====H==L=Ww==",
+"     L     H  L     ",
+"     L O   H  L     ",
+"=V=L=L=IBHDH==L=LwV=",
+"   L     H      L   ",
+"   L     H      L   ",
+"=P=LW=L=O=H==L2BWLwH=",
+"      L     L     H ",
+"      L     L     H ",
+"==LV=OL=DH=WL=1LW=H=",
+"  L      H     L    ",
+"  L      H     L    ",
+"==L==V==BH==3=wL==4="].join('\n');
+
+===== FILE: js/game.js =====
+WC.Game=class{
+ constructor(text){this.text=text;this.lives=WC.CONFIG.player.lives;this.keys={};this.epoch=0;this.load()}
+ load(){const L=this.level=new WC.Level(this.text);
+  this.player=new WC.Player(L.player.x,L.player.y);
+  this.enemies=L.spawns.map(s=>new s.E(s.x,s.y));
+  this.timers=[];this.epoch++;this.state='ready';this.later(1.5,()=>{this.state='play'});
+  this.fireT=WC.CONFIG.enemies.fireball.interval}
+ later(t,fn){this.timers.push({t,fn})}
+ actors(){return[this.player,...this.enemies.filter(e=>!e.hidden&&!e.dead)]}
+ hit(x,y,by){WC.Sound.play('hit');
+  const o=this.level.get(x,y);if(o&&o.onHit)o.onHit(this,by);
+  this.enemies.forEach(e=>{if(!e.hidden&&e.y==y&&e.x==x&&e.onHammer)e.onHammer(this)})}
+ near(a,b){let dx=Math.abs(a.rx-b.rx);if(!a.nowrap&&!b.nowrap)dx=Math.min(dx,this.level.w-dx);return Math.hypot(dx,a.ry-b.ry)} // 左右ループをまたいだ距離
+ killPlayer(){if(this.state!='play')return;this.state='dead';WC.Sound.play('die');this.lives--;
+  this.later(1.2,()=>{if(this.lives>0)this.load();else{this.state='over';this.later(1.5,()=>this.onOver&&this.onOver())}})}
+ checkAllHidden(){const es=this.enemies.filter(e=>!e.noDoor&&!e.dead);
+  if(es.length&&es.every(e=>e.hidden)){
+   this.level.objs.forEach(o=>{if(o.kind=='door')o.force=true});
+   es.forEach(e=>{e.stun=WC.CONFIG.door.stunAll;e.exitAfter=true})}}
+ onExit(){this.level.objs.forEach(o=>{if(o.kind=='door'&&o.force){o.force=false;o.open=WC.CONFIG.door.openTime}})}
+ update(dt){
+  const run=this.timers,ep=this.epoch;this.timers=[];
+  for(const tm of run){tm.t-=dt;if(tm.t<=0)tm.fn();else if(ep==this.epoch)this.timers.push(tm);if(ep!=this.epoch)return}
+  if(this.state!='play')return;
+  const L=this.level,p=this.player;
+  [...L.objs.values()].forEach(o=>o.update&&o.update(dt,this));
+  p.update(dt,this);
+  this.enemies.forEach(e=>e.update(dt,this));
+  this.enemies=this.enemies.filter(e=>!e.dead);
+  if(p.t>=1)this.enemies.forEach(e=>{if(e.hidden&&e.x==p.x&&e.y==p.y)e.exit(this)}); // 扉に触れると出てくる
+  for(const e of this.enemies)if(!e.hidden&&!e.harmless&&!e.abn&&e.stun<=0&&this.near(e,p)<.65){this.killPlayer();break}
+  this.fireT-=dt;
+  if(this.fireT<=0){this.fireT=WC.CONFIG.enemies.fireball.interval;
+   const ys=L.fireRows();
+   if(ys.length){const left=Math.random()<.5;this.enemies.push(new WC.Fireball(left?0:L.w-1,ys[Math.random()*ys.length|0],left?1:-1))}}
+  if(this.state=='play'&&![...L.objs.values()].some(o=>o.needsBreak)){this.state='clear';WC.Sound.play('clear');this.later(2,()=>this.onClear?this.onClear():this.load())}}
+ draw(c){const s=WC.CONFIG.tile,L=this.level;
+  c.fillStyle='#000';c.fillRect(0,0,L.w*s,L.h*s);
+  WC.Gfx.terrain(c,L,s);
+  this.enemies.forEach(e=>e.draw(c,s));this.player.draw(c,s);
+  c.fillStyle='#fff';c.font='14px monospace';
+  c.fillText(`LIVES ${this.lives}  LEFT ${[...L.objs.values()].filter(o=>o.needsBreak).length}`,6,14);
+  const m={ready:'READY?',dead:'MISS',clear:'CLEAR!',over:'GAME OVER'}[this.state];
+  if(m){c.font='32px monospace';c.textAlign='center';c.fillText(m,L.w*s/2,L.h*s/2);c.textAlign='left'}}
+};
+
+===== FILE: js/editor.js =====
+// マリメ風エディタ。パレットから選んでマップをタップ/ドラッグで配置。
+WC.SPR={P:'player','1':'chaser','2':'runner','3':'foreman','4':'fastchaser'};
+WC.TOOLS=[
+ {ch:'=',k:'floor',n:'床'},{ch:'W',k:'wall',s:{hp:1},n:'壁1'},{ch:'w',k:'wall',s:{hp:2},n:'壁2'},{ch:'V',k:'wall',s:{hp:3},n:'壁3'},
+ {ch:'L',k:'ladder',s:{needsBreak:true},n:'梯子'},{ch:'H',k:'ladder',s:{},n:'固梯子'},
+ {ch:'O',k:'drum',n:'ドラム缶'},{ch:'I',k:'iron',n:'鉄柱'},{ch:'B',k:'bomb',n:'爆弾'},{ch:'D',k:'door',s:{},n:'扉'},
+ {ch:'P',k:'player',n:'プレイヤー'},{ch:'1',k:'chaser',n:'追尾'},{ch:'2',k:'runner',n:'直進'},{ch:'3',k:'foreman',n:'背景敵'},{ch:'4',k:'fastchaser',n:'高速'},
+ {ch:' ',k:null,n:'消す'}];
+WC.Editor={
+ grid:[],tool:'=',
+ load(t){const rows=t.replace(/\r/g,'').split('\n').filter(r=>r.length),w=Math.max(...rows.map(r=>r.length));this.grid=rows.map(r=>r.padEnd(w,' ').split(''))},
+ text(){return this.grid.map(r=>r.join('')).join('\n')},
+ resize(w,h){const g=[];for(let y=0;y<h;y++){g.push([]);for(let x=0;x<w;x++)g[y].push((this.grid[y]||[])[x]||' ')}this.grid=g},
+ paint(x,y){const g=this.grid;if(!g[y]||g[y][x]===undefined)return;
+  if(this.tool=='P')g.forEach(r=>r.forEach((c,i)=>{if(c=='P')r[i]=' '}));
+  g[y][x]=this.tool},
+ palette(root){WC.TOOLS.forEach(t=>{const b=document.createElement('button');
+   b.innerHTML='<canvas width="36" height="36"></canvas><br>'+t.n;
+   const c=b.firstChild.getContext('2d');c.fillStyle='#000';c.fillRect(0,0,36,36);
+   if(t.k)WC.Gfx.draw(t.k,c,0,0,36,t.s||{});else{c.fillStyle='#f66';c.font='24px sans-serif';c.fillText('✕',8,27)}
+   b.onclick=()=>{this.tool=t.ch;root.querySelectorAll('button').forEach(o=>o.classList.remove('sel'));b.classList.add('sel')};
+   root.appendChild(b)});root.firstChild.classList.add('sel')},
+ render(c){const s=WC.CONFIG.tile,L=new WC.Level(this.text()),cv=c.canvas;
+  if(cv.width!=L.w*s||cv.height!=L.h*s){cv.width=L.w*s;cv.height=L.h*s}
+  c.fillStyle='#000';c.fillRect(0,0,cv.width,cv.height);
+  c.strokeStyle='#222';c.beginPath();
+  for(let x=0;x<=L.w;x++){c.moveTo(x*s,0);c.lineTo(x*s,cv.height)}
+  for(let y=0;y<=L.h;y++){c.moveTo(0,y*s);c.lineTo(cv.width,y*s)}
+  c.stroke();WC.Gfx.terrain(c,L,s);
+  this.grid.forEach((r,y)=>r.forEach((ch,x)=>{const k=WC.SPR[ch];if(k)WC.Gfx.draw(k,c,x*s,y*s,s,{})}))},
+ bind(cv,c){let on=false;
+  const at=e=>{const r=cv.getBoundingClientRect();
+   this.paint(Math.floor((e.clientX-r.left)/r.width*this.grid[0].length),Math.floor((e.clientY-r.top)/r.height*this.grid.length));this.render(c)};
+  cv.addEventListener('pointerdown',e=>{if(!document.body.classList.contains('edit'))return;on=true;cv.setPointerCapture(e.pointerId);at(e)});
+  cv.addEventListener('pointermove',e=>{if(on)at(e)});
+  ['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>on=false))}
+};
+
+===== FILE: js/params.js =====
+// WC.CONFIG の数値を自動でスライダー化。項目を足せば自動で増える。
+WC.Params={
+ build(root){root.innerHTML='';
+  const walk=(o,box)=>{for(const k in o){const v=o[k];if(k=='tile'||k=='colors')continue;
+   if(typeof v=='number'){
+    const d=this.def(o,k),l=document.createElement('label'),i=document.createElement('input'),out=document.createElement('output');
+    i.type='range';i.min=d>=1?1:0;i.max=Math.max(2,d*3);i.step=Number.isInteger(d)?1:.05;i.value=v;out.textContent=v;
+    i.oninput=()=>{o[k]=+i.value;out.textContent=i.value};
+    l.append(k+' ',i,out);box.appendChild(l)}
+   else if(v&&typeof v=='object'&&!Array.isArray(v)){const dt=document.createElement('details');dt.innerHTML='<summary>'+k+'</summary>';box.appendChild(dt);walk(v,dt)}}};
+  walk(WC.CONFIG,root)},
+ def(o,k){const find=(a,b)=>a===o?b:null;let r;const rec=(a,b)=>{if(a===o){r=b[k];return}for(const x in a)if(a[x]&&typeof a[x]=='object'&&b&&b[x])rec(a[x],b[x])};rec(WC.CONFIG,WC.DEFAULTS);return r??o[k]},
+ reset(){WC.merge(WC.CONFIG,WC.DEFAULTS)}
+};
+
+===== FILE: js/main.js =====
+(()=>{
+ const $=id=>document.getElementById(id),cv=$('cv'),c=cv.getContext('2d'),E=WC.Editor,K={};
+ const KEYS={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'hit',KeyZ:'hit'};
+ let G=null,mode='title',testing=false,last=0,mt;
+ const msg=t=>{$('msg').textContent=t;clearTimeout(mt);mt=setTimeout(()=>$('msg').textContent='',2000)};
+ // キャンバスを残り領域にアスペクト比維持でフィット(ページはスクロールさせない)
+ function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k)+'px';cv.style.height=Math.floor(cv.height*k)+'px'}
+ WC.onFit=fit;addEventListener('resize',fit);
+ document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('button'))e.preventDefault()}); // ボタンにフォーカスさせない
+ function setMode(m){mode=m;document.body.className=m;
+  if(m=='title'){G=null;cv.width=640;cv.height=480;c.fillStyle='#000';c.fillRect(0,0,640,480)}
+  if(m=='edit'){G=null;sizes();E.render(c)}
+  fit()}
+ function play(text,test){testing=test;G=new WC.Game(text);G.keys=K;
+  const back=()=>setMode(test?'edit':'title');G.onOver=back;if(test)G.onClear=back;
+  cv.width=G.level.w*WC.CONFIG.tile;cv.height=G.level.h*WC.CONFIG.tile;setMode('play')}
+ function sizes(){$('cw').value=E.grid[0].length;$('ch').value=E.grid.length}
+ const sheet=$('sheet'),open=s=>{sheet.dataset.s=s;sheet.hidden=false;if(s=='code')$('lv').value=E.text()};
+ E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));
+ $('bPlay').onclick=()=>play(E.text(),false);
+ $('bEdit').onclick=()=>setMode('edit');
+ $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
+ $('bTest').onclick=()=>E.text().includes('P')?play(E.text(),true):msg('プレイヤー(P)を置いてね');
+ $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.render(c)};
+ $('cw').onchange=$('ch').onchange=()=>{E.resize(Math.min(40,Math.max(8,+$('cw').value||20)),Math.min(30,Math.max(6,+$('ch').value||15)));sizes();E.render(c);fit()};
+ $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
+ $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
+ $('bParam').onclick=()=>open('param');$('bCode').onclick=()=>open('code');$('sClose').onclick=()=>sheet.hidden=true;
+ $('pReset').onclick=()=>{WC.Params.reset();WC.Params.build($('pbody'))};
+ $('lvLoad').onclick=()=>{if($('lv').value.trim()){E.load($('lv').value);sizes();E.render(c);fit();sheet.hidden=true;msg('読み込んだ')}};
+ addEventListener('keydown',e=>{const k=KEYS[e.code];if(k&&mode=='play'&&document.activeElement.tagName!='TEXTAREA'){K[k]=true;e.preventDefault()}});
+ addEventListener('keyup',e=>{const k=KEYS[e.code];if(k)K[k]=false});
+ // タッチ操作: 十字パッドは指のスライドで方向が変わる
+ const dp=$('dpad'),dir=e=>{const r=dp.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5,h=Math.abs(x)>Math.abs(y);
+  K.left=h&&x<-.1;K.right=h&&x>.1;K.up=!h&&y<-.1;K.down=!h&&y>.1};
+ dp.onpointerdown=e=>{dp.setPointerCapture(e.pointerId);dir(e);e.preventDefault()};
+ dp.onpointermove=e=>{if(e.buttons)dir(e)};
+ dp.onpointerup=dp.onpointercancel=()=>{K.left=K.right=K.up=K.down=false};
+ const hb=$('hbtn');hb.onpointerdown=e=>{K.hit=true;e.preventDefault()};hb.onpointerup=hb.onpointercancel=hb.onpointerleave=()=>{K.hit=false};
+ (function loop(t){requestAnimationFrame(loop); // 先に次フレームを予約(途中で例外が出てもループが止まらないように)
+  const dt=Math.min(.05,(t-last)/1000||0);last=t;const g=G;
+  if(mode=='play'&&g){g.update(dt);if(G===g)g.draw(c)} // update中のコールバックで G=null になる(ゲームオーバー/クリア)ので描画前に確認
+ })(0);
+ setMode('title');
+})();
+
+===== FILE: test/e2e.js =====
+// npm run test:e2e … 実ブラウザ(playwright + chromium)での確認。無ければスキップする。
+//   準備: npm i -D playwright && npx playwright install chromium
+const path=require('path');
+let chromium;try{({chromium}=require('playwright'))}catch(e){console.log('playwright が無いのでスキップ(npm i -D playwright && npx playwright install chromium)');process.exit(0)}
+const url='file://'+path.resolve(__dirname,'..','index.html');
+let fails=0;const ok=(c,m)=>{if(!c){fails++;console.log('  FAIL '+m)}else console.log('  PASS '+m)};
+(async()=>{
+ const b=await chromium.launch(),p=await b.newPage({viewport:{width:760,height:900}}),errs=[];
+ p.on('pageerror',e=>errs.push(e.message));
+ await p.goto(url);
+ const lit=()=>p.evaluate(()=>{const c=document.getElementById('cv'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<d.length;i+=4)if(d[i]|d[i+1]|d[i+2])n++;return n});
+ const mode=()=>p.evaluate(()=>document.body.className);
+
+ console.log('ゲームオーバー後にもう一度プレイしても画面が真っ暗にならない(過去のバグ)');
+ await p.evaluate(()=>WC.Editor.load(['   ','P1W','===','   '].join('\n')));   // 敵がすぐ当たるステージ
+ for(let r=1;r<=3;r++){
+  await p.click('#bPlay',{timeout:3000});await p.waitForTimeout(1200);
+  ok(await mode()=='play'&&await lit()>0,`${r}回目: プレイ画面が描画されている`);
+  for(let i=0;i<150&&await mode()!='title';i++)await p.waitForTimeout(200);
+  ok(await mode()=='title','ゲームオーバーでタイトルへ戻る');
+ }
+
+ console.log('エディタ: 左右端の足場は消しても残る / 全消しでエラーが出ない');
+ await p.evaluate(()=>WC.Editor.load(['          ','          ','P===  ===W','====O=====','          '].join('\n')));
+ await p.click('#bEdit');
+ const floorAt=(cx,cy)=>p.evaluate(([cx,cy])=>{const d=document.getElementById('cv').getContext('2d').getImageData(cx*32+12,cy*32+30,1,1).data;return d[1]>140&&d[0]<80},[cx,cy]);
+ await p.evaluate(()=>[...document.querySelectorAll('#palette button')].pop().click());   // 最後=消しゴム
+ const box=await p.locator('#cv').boundingBox(),cw=box.width/10,ch=box.height/5;
+ for(const cx of [0,9])for(let cy=0;cy<5;cy++)await p.mouse.click(box.x+cw*(cx+.5),box.y+ch*(cy+.5));
+ ok(await floorAt(0,1)&&await floorAt(9,1)&&await floorAt(0,4),'端を消しても足場が全段に残っている');
+ await p.click('#bClear');await p.waitForTimeout(100);
+ ok(await floorAt(0,0)&&await floorAt(9,3),'全消し後も端の足場が残っている');
+
+ ok(errs.length==0,'ページエラーなし '+JSON.stringify(errs));
+ await b.close();console.log(fails?`\n${fails} 件失敗`:'\n全部OK');process.exit(fails?1:0);
+})().catch(e=>{console.error(e);process.exit(1)});
+
+===== FILE: test/harness.js =====
+// ブラウザ無しでゲームを読み込む(vm)。index.html の <script> 順に読む。main.js(DOM配線)だけ除く。
+// 乱数は固定(テストが毎回同じ結果になるように)。
+const fs=require('fs'),vm=require('vm'),path=require('path');
+const root=path.resolve(__dirname,'..');
+function seeded(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function load(dir=root,seed=1){
+ const M=Object.create(Math);M.random=seeded(seed);
+ const ctx={console,Math:M,Audio:function(){this.play=()=>Promise.resolve()}};
+ ctx.window=ctx;vm.createContext(ctx);
+ const html=fs.readFileSync(path.join(dir,'index.html'),'utf8');
+ for(const m of html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)){const s=m[1];if(/main\.js$/.test(s))continue;
+  vm.runInContext(fs.readFileSync(path.join(dir,s),'utf8'),ctx,{filename:s})}
+ return ctx.WC}
+module.exports={load,root};
+
+===== FILE: test/logic.test.js =====
+// npm test … ゲームロジックのテスト(依存なし)。仕様(docs/SPEC.md)をそのまま検証する。
+const {load}=require('./harness');
+let WC,fails=0,count=0;
+const ok=(c,m)=>{count++;if(!c){fails++;console.log('  FAIL '+m)}};
+const test=(name,fn)=>{WC=load();console.log(name);try{fn()}catch(e){fails++;console.log('  ERROR '+(e.stack||e))}};
+
+// ---- ヘルパー ----
+// 壊すもの(壁)が1つも無いとクリア扱いで止まるので、テスト用ステージには壁を置くこと。
+const mk=rows=>{const g=new WC.Game(rows.join('\n'));g.keys={};g.state='play';g.timers=[];g.enemies=[];return g};
+const run=(g,sec,keys)=>{if(keys)g.keys=keys;for(let i=0;i<Math.round(sec*60);i++)g.update(1/60);g.keys={}};
+// x のマスに止まるまで歩く(到着の瞬間に次の一歩を決めるので、目的地へ向かう一歩の間だけキーを押す)
+const goTo=(g,x)=>{let n=0;while(!(g.player.x==x&&g.player.t>=1)&&n++<3000){g.keys=g.player.tx<x?{right:true}:g.player.tx>x?{left:true}:{};g.update(1/60)}g.keys={}};
+const hit=g=>{g.keys={hit:true};g.update(1/60);g.keys={}};
+const objs=g=>[...g.level.objs.values()];
+const put=(a,x,y)=>{a.x=a.tx=a.rx=x;a.y=a.ty=a.ry=y};
+const allEdges=L=>{for(let y=0;y<L.h;y++)if(!L.floor[y][0]||!L.floor[y][L.w-1])return false;return true};
+
+test('鉄柱の上のドラム缶: 鉄柱の地面に落ちる/鉄柱は壊れる/地面は残る',()=>{
+ let g=mk(['         ','   O     ','P==I====W','         ','=========','         ','=========','         ']);
+ goTo(g,3);hit(g);
+ ok(!objs(g).find(o=>o.kind=='iron'),'叩くと鉄柱が壊れる');
+ ok(g.level.floor[2][3],'鉄柱のマスの地面は残る');
+ g.keys={right:true};run(g,.5);run(g,2);
+ const d=objs(g).find(o=>o.kind=='drum');
+ ok(d&&d.x==3&&d.y==2&&d.st==3,'ドラム缶は鉄柱の地面(3,2)に着地(1つ下の段ではない)');
+ ok(d&&d.blocks,'着地したドラム缶は通行止め');ok(g.state=='play','離れていれば無事');
+ g=mk(['         ','   O     ','P==I====W','         ','=========','         ']);
+ goTo(g,3);hit(g);run(g,1.5);ok(g.state=='dead'||g.state=='ready','落下地点に残ると死ぬ');
+});
+test('鉄柱の上の壁: 落ちて残る/無害/壊せる',()=>{
+ const g=mk(['         ','   W     ','P==I====W','         ','=========','         ']);
+ ok(g.level.floor[1][3]===false,'鉄柱の上の壁は自前の地面を持たない');
+ goTo(g,3);hit(g);run(g,2);
+ const w=objs(g).find(o=>o.kind=='wall'&&o.x==3);
+ ok(w&&w.y==2&&w.st==3,'壁は(3,2)に着地');ok(g.state=='play','落ちる壁は無害');ok(!g.level.blocked(3,2),'壁は通行を妨げない');
+ goTo(g,3);hit(g);ok(!objs(g).find(o=>o.kind=='wall'&&o.x==3),'着地した壁は壊せる');
+});
+test('梯子: 壊しても上下端の地面が残る',()=>{
+ const g=mk(['         ','  ===L===','     L   ','     L   ','  ===L===','         ','W        ']);
+ ok(g.level.floor[1][5]&&g.level.floor[4][5]&&!g.level.floor[2][5],'端だけ地面を持つ');
+ objs(g).filter(o=>o.isLadder)[0].brk(g);run(g,1);
+ ok(objs(g).filter(o=>o.isLadder).length==0,'連鎖して全部壊れる');
+ ok(g.level.standable(5,1)&&g.level.standable(5,4),'壊れた後も端に立てる');
+});
+test('ドラム缶: 通行止め/めり込まない/異常落下でも止まる',()=>{
+ let g=mk(['         ','         ','P==O====W','         ','=========','         ']);
+ run(g,2,{right:true});ok(g.player.x==2,'横から入れない');
+ g=mk(['         ','         ','    O   W','         ','=========','         ']);
+ put(g.player,4,0);run(g,1);ok(!(g.player.x==4&&g.player.y==2),'上から落ちてもめり込まない(上に立つ)');
+ g=mk(['         ','         ','   O    W','=========','         ','=========','         ']);
+ put(g.player,3,0);g.player.startAbn();run(g,1);ok(!(g.player.x==3&&g.player.y>=2),'異常落下はドラム缶を突き抜けない');
+});
+test('段差: ドラム缶の上から足場へ上がれない(詰み)/片側が空いていれば出られる/同じ高さは渡れる',()=>{
+ const pit=['          ','          ','P=== ====W','====O=====','          '];
+ let g=mk(pit);goTo(g,4);ok(g.player.x==4&&g.player.y==2,'ドラム缶の上に立つ(降りるのは可)');
+ run(g,3,{left:true});ok(g.player.x==4,'左の足場へ上がれない');
+ run(g,3,{right:true});ok(g.player.x==4,'右の足場へ上がれない');
+ run(g,1,{up:true});run(g,1,{down:true});ok(g.player.x==4&&g.player.y==2,'梯子が無ければ縦にも出られない=詰み');
+ g=mk(['          ','          ','P===  ===W','====O=====','          ']);goTo(g,4);
+ run(g,.4,{right:true});ok(g.player.x>=5&&g.player.y==3,'片側が空いていれば歩いて落ちて出られる');
+ g=mk(['           ','           ','P===  ====W','====OO=====','           ']);goTo(g,4);
+ run(g,1,{right:true});ok(g.player.x==5&&g.player.y==2,'隣のドラム缶の上へは渡れる(同じ高さ)');
+ g=mk(pit);const e=new WC.Enemies['1'](4,2);g.enemies=[e];put(g.player,0,2);g.killPlayer=()=>{};
+ run(g,3);ok(e.x==4&&e.y==2,'敵も同じ段差で詰む');
+});
+test('左右端の足場は全段・消せない',()=>{
+ ok(allEdges(new WC.Level(['          ','    L     ','P   L    W','    L     ','          '].join('\n'))),'端の文字が空白でも全段が地面');
+ ok(allEdges(new WC.Level(WC.Levels.sample)),'サンプルステージも');
+ ok(new WC.Level('     \n     ').floor[0][2]===false,'内側の空白は地面ではない(端だけ特別)');
+});
+test('左右ループ: 連続して動く/またいで当たる/火の玉はループしない',()=>{
+ let g=mk(['          ','          ','P===  ====','          ','==========','          ']);
+ g.level.objs.set('9,2',new WC.Objects.W(9,2));
+ let prev=null,maxJump=0,minRx=9;g.keys={left:true};
+ for(let i=0;i<60;i++){g.update(1/60);const rx=g.player.rx;minRx=Math.min(minRx,rx);
+  if(prev!=null){let d=Math.abs(rx-prev);d=Math.min(d,g.level.w-d);maxJump=Math.max(maxJump,d)}prev=rx}
+ ok(minRx<=-.5,'端の外(rx<0)まで連続して動く');ok(maxJump<.2,'1フレームの移動が小さい(ワープしない)');
+ const ch=new WC.Enemies['1'](9,2);g.player.rx=-.4;ch.rx=9;ok(g.near(g.player,ch)<.65,'端をまたいで接触判定');
+ const fb=new WC.Fireball(0,2,1);fb.rx=-.3;g.player.rx=9;ok(g.near(fb,g.player)>.65,'火の玉はループしない');
+});
+test('裏側の敵(親方)に殴られたら異常落下でミスではない',()=>{
+ const g=mk(['         ','         ','P==3====W','         ','=========','         ','=========','         ']);
+ g.enemies=g.level.spawns.map(s=>new s.E(s.x,s.y));
+ const lives=g.lives;let fell=false;
+ for(let i=0;i<60*6;i++){g.update(1/60);if(g.player.abn)fell=true}
+ ok(fell,'異常落下した');ok(g.lives==lives&&g.state!='dead','残機は減らない');ok(g.player.y>2,'下の段へ落ちた');
+});
+test('火の玉: 床の多い段すべてに出る/当たるとミス',()=>{
+ const L=new WC.Level(WC.Levels.sample);ok(L.fireRows().length>=4,'サンプルで複数の段');
+ const g=new WC.Game(WC.Levels.sample);g.keys={};g.killPlayer=()=>{};const rows={};
+ for(let i=0;i<60*65;i++){g.update(1/60);for(const e of g.enemies)if(e.name=='fireball'&&!e.seen){e.seen=1;rows[e.y]=1}}
+ ok(Object.keys(rows).length>=2,'複数の段に出現した');
+ const g3=new WC.Game(WC.Levels.sample);g3.keys={};g3.enemies=[];g3.state='play';g3.timers=[];
+ put(g3.player,10,8);g3.enemies.push(new WC.Fireball(0,8,1));for(let i=0;i<360&&g3.state=='play';i++)g3.update(1/60);
+ ok(g3.state=='dead','同じ段のプレイヤーに当たるとミス');
+});
+test('ランダム操作で壊れない(例外・不正な位置が出ない)',()=>{
+ const K=['left','right','up','down','hit'];
+ for(let n=0;n<40;n++){const g=new WC.Game(WC.Levels.sample);let done=false;g.onOver=g.onClear=()=>done=true;let cur={};
+  for(let i=0;i<60*60&&!done;i++){if(i%12==0){cur={};cur[K[Math.random()*5|0]]=true;cur[K[Math.random()*5|0]]=true}
+   g.keys=cur;g.update(1/60);
+   for(const a of g.actors()){if(a.t>=1&&!a.bg&&a.name!='fireball'&&!a.abn&&g.level.blocked(a.x,a.y)){ok(false,`${a.name} が通行止めオブジェクトの中にいる (${a.x},${a.y})`);return}
+    if(!isFinite(a.rx)||!isFinite(a.ry)){ok(false,'座標がNaN');return}}}}
+ ok(true,'40ゲーム');
+});
+test('エディタの全パレットが読み込める',()=>{
+ for(const t of WC.TOOLS)if(t.ch!==' '&&t.ch!=='='){const L=new WC.Level('  '+t.ch+'  \n=====');ok(L.objs.size>0||L.spawns.length>0||L.player.x==2,`${t.n}(${t.ch})`)}
+});
+console.log(fails?`\n${fails} 件失敗 / ${count} 件`:`\n全部OK (${count} 件)`);process.exit(fails?1:0);
+
+===== FILE: tools/make-context.js =====
+#!/usr/bin/env node
+// npm run context → context.txt を生成する。
+// 新規チャットに context.txt だけ渡せば、ゲームの仕様・構成・全ソースを把握して開発を続けられるようにするためのもの。
+// 構成: ①AIへの案内 ②docs/SPEC.md(手書きの仕様書) ③ファイル一覧 ④全ファイルの中身(index.html の読み込み順)
+// 依存なし(Node 標準のみ)。ソースを足しても自動で拾う。index.html に登録し忘れた js があれば警告する。
+const fs=require('fs'),path=require('path');
+const root=path.resolve(__dirname,'..'),OUT=path.join(root,'context.txt');
+const SKIP_DIR=new Set(['node_modules','.git']),SKIP_FILE=new Set(['context.txt','package-lock.json']),EXT=new Set(['.js','.html','.css','.md','.json']);
+const SPEC='docs/SPEC.md';
+const M='='.repeat(5); // 区切り記号。ソース内に区切りそのものを書かない(context.txt に載せたとき本物の区切りと混ざるため)
+
+const rel=p=>path.relative(root,p).split(path.sep).join('/');
+const walk=(d,o=[])=>{for(const n of fs.readdirSync(d).sort()){const p=path.join(d,n),s=fs.statSync(p);
+ if(s.isDirectory()){if(!SKIP_DIR.has(n))walk(p,o)}else if(EXT.has(path.extname(n))&&!SKIP_FILE.has(n))o.push(rel(p))}return o};
+const read=f=>fs.readFileSync(path.join(root,f),'utf8').replace(/\r\n/g,'\n').replace(/\s+$/,'')+'\n';
+
+const all=walk(root);
+const html=fs.existsSync(path.join(root,'index.html'))?read('index.html'):'';
+const scripts=[...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m=>m[1]);   // 読み込み順=依存順
+const warns=[];
+for(const s of scripts)if(!fs.existsSync(path.join(root,s)))warns.push(`index.html が読み込む ${s} が存在しない`);
+for(const f of all)if(f.startsWith('js/')&&!scripts.includes(f))warns.push(`${f} が index.html の <script> に登録されていない(動かない)`);
+if(!fs.existsSync(path.join(root,SPEC)))warns.push(`${SPEC} が無い(仕様書。作ること)`);
+
+// 並び: index.html, style.css, package.json, js(読み込み順)→その他js, test, tools, 残り。仕様書は別枠なので除く。
+const rank=f=>{if(f==='index.html')return[0,0];if(f==='style.css')return[1,0];if(f==='package.json')return[2,0];
+ const i=scripts.indexOf(f);if(i>=0)return[3,i];if(f.startsWith('js/'))return[4,0];if(f.startsWith('test/'))return[5,0];if(f.startsWith('tools/'))return[6,0];return[7,0]};
+const files=all.filter(f=>f!==SPEC).sort((a,b)=>{const x=rank(a),y=rank(b);return x[0]-y[0]||x[1]-y[1]||a.localeCompare(b)});
+
+const body=files.map(f=>`${M} FILE: ${f} ${M}\n${read(f)}`).join('\n');
+const tree=files.map(f=>{const t=read(f);return `${f}  (${t.split('\n').length-1}行)`}).join('\n');
+const spec=fs.existsSync(path.join(root,SPEC))?read(SPEC):'(docs/SPEC.md が無い)\n';
+const now=new Date(Date.now()+9*3600e3).toISOString().replace('T',' ').slice(0,16)+' JST';
+
+const guide=`【このファイルの使い方】(AIへ)
+これは「Wrecking Crew-like」(ブラウザの2Dアクションゲーム)の開発引き継ぎ資料です。あなたはこの続きを開発します。
+1. 第1部の仕様書を最後まで読む(設計・確定仕様・作業ルールが書いてある。ここが一次資料)。
+2. 第3部の全ソースを読む。コードと仕様書が食い違ったらコードが正。直す前に必ず該当ファイルの現物を確認する。
+3. ユーザーの依頼は口語で曖昧なことが多い。解釈が割れる所は解釈を明記して実装し、返答の最後に一言確認する。
+4. 実行環境(Node/ブラウザ)があるなら、変更後に \`npm test\` を通し、動く一式を zip で返す。無いなら変更ファイルを全文で出す。
+5. 仕様を変えたら docs/SPEC.md も更新し、ユーザーに「npm run context で context.txt を作り直してね」と伝える。
+(ユーザー側: プロジェクト直下で \`npm run context\` を実行すると、このファイルが最新のソースから再生成されます)
+`;
+
+const out=`${guide}
+生成: ${now} / ファイル ${files.length + 1} 個
+${warns.length?'\n【警告】\n'+warns.map(w=>'- '+w).join('\n')+'\n':''}
+################################################################
+# 第1部: 仕様書 (${SPEC})
+################################################################
+${spec}
+################################################################
+# 第2部: ファイル一覧(第3部の掲載順)
+################################################################
+${SPEC}  (第1部に掲載)
+${tree}
+
+################################################################
+# 第3部: 全ソース
+################################################################
+${body}
+${M} END OF CONTEXT ${M}
+`;
+fs.writeFileSync(OUT,out);
+const kb=(Buffer.byteLength(out)/1024).toFixed(1);
+console.log(`context.txt を作成: ${files.length+1} ファイル / ${out.length.toLocaleString()} 文字 (${kb} KB)`);
+warns.forEach(w=>console.warn('警告: '+w));
+
+===== END OF CONTEXT =====

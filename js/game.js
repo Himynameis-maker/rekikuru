@@ -10,6 +10,7 @@ WC.Game=class{
  hit(x,y,by){WC.Sound.play('hit');
   const o=this.level.get(x,y);if(o&&o.onHit)o.onHit(this,by);
   this.enemies.forEach(e=>{if(!e.hidden&&e.y==y&&e.x==x&&e.onHammer)e.onHammer(this)})}
+ near(a,b){let dx=Math.abs(a.rx-b.rx);if(!a.nowrap&&!b.nowrap)dx=Math.min(dx,this.level.w-dx);return Math.hypot(dx,a.ry-b.ry)} // 左右ループをまたいだ距離
  killPlayer(){if(this.state!='play')return;this.state='dead';WC.Sound.play('die');this.lives--;
   this.later(1.2,()=>{if(this.lives>0)this.load();else{this.state='over';this.later(1.5,()=>this.onOver&&this.onOver())}})}
  checkAllHidden(){const es=this.enemies.filter(e=>!e.noDoor&&!e.dead);
@@ -27,10 +28,10 @@ WC.Game=class{
   this.enemies.forEach(e=>e.update(dt,this));
   this.enemies=this.enemies.filter(e=>!e.dead);
   if(p.t>=1)this.enemies.forEach(e=>{if(e.hidden&&e.x==p.x&&e.y==p.y)e.exit(this)}); // 扉に触れると出てくる
-  for(const e of this.enemies)if(!e.hidden&&!e.harmless&&!e.abn&&e.stun<=0&&Math.hypot(e.rx-p.rx,e.ry-p.ry)<.65){this.killPlayer();break}
+  for(const e of this.enemies)if(!e.hidden&&!e.harmless&&!e.abn&&e.stun<=0&&this.near(e,p)<.65){this.killPlayer();break}
   this.fireT-=dt;
   if(this.fireT<=0){this.fireT=WC.CONFIG.enemies.fireball.interval;
-   const ys=[];L.floor.forEach((r,y)=>{if(r[0]&&r[L.w-1])ys.push(y)});
+   const ys=L.fireRows();
    if(ys.length){const left=Math.random()<.5;this.enemies.push(new WC.Fireball(left?0:L.w-1,ys[Math.random()*ys.length|0],left?1:-1))}}
   if(this.state=='play'&&![...L.objs.values()].some(o=>o.needsBreak)){this.state='clear';WC.Sound.play('clear');this.later(2,()=>this.onClear?this.onClear():this.load())}}
  draw(c){const s=WC.CONFIG.tile,L=this.level;

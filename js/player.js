@@ -12,5 +12,5 @@ WC.Player=class extends WC.Actor{
   if(dx&&L.canStep(this.x,this.y,dx,0))return[dx,0];
   return null}
  trap(){}
- draw(c,s){super.draw(c,s);if(this.busy>0){c.fillStyle='#ccc';c.fillRect((this.rx+this.dir*.5+.3)*s,(this.ry+.1)*s,s*.4,s*.3)}}
+ paint(c,s,px,py){super.paint(c,s,px,py);if(this.busy>0){c.fillStyle='#ccc';c.fillRect((px+this.dir*.5+.3)*s,(py+.1)*s,s*.4,s*.3)}}
 };

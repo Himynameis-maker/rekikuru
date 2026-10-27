@@ -21,7 +21,7 @@
  $('bEdit').onclick=()=>setMode('edit');
  $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
  $('bTest').onclick=()=>E.text().includes('P')?play(E.text(),true):msg('プレイヤー(P)を置いてね');
- $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.fix();E.render(c)};
+ $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.render(c)};
  $('cw').onchange=$('ch').onchange=()=>{E.resize(Math.min(40,Math.max(8,+$('cw').value||20)),Math.min(30,Math.max(6,+$('ch').value||15)));sizes();E.render(c);fit()};
  $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
  $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
@@ -37,6 +37,9 @@
  dp.onpointermove=e=>{if(e.buttons)dir(e)};
  dp.onpointerup=dp.onpointercancel=()=>{K.left=K.right=K.up=K.down=false};
  const hb=$('hbtn');hb.onpointerdown=e=>{K.hit=true;e.preventDefault()};hb.onpointerup=hb.onpointercancel=hb.onpointerleave=()=>{K.hit=false};
- (function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(mode=='play'&&G){G.update(dt);G.draw(c)}requestAnimationFrame(loop)})(0);
+ (function loop(t){requestAnimationFrame(loop); // 先に次フレームを予約(途中で例外が出てもループが止まらないように)
+  const dt=Math.min(.05,(t-last)/1000||0);last=t;const g=G;
+  if(mode=='play'&&g){g.update(dt);if(G===g)g.draw(c)} // update中のコールバックで G=null になる(ゲームオーバー/クリア)ので描画前に確認
+ })(0);
  setMode('title');
 })();
