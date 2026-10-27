@@ -105,15 +105,17 @@ test('ドラム缶上の敵: 足場へ上がれずぶつかったら反転する
   ok(e.dir===1&&d&&d[0]===1,'ドラム缶上で足場に阻まれたら反転して進む');
  }
 });
-test('直進敵: 下りを優先し、下りた後は下り傾向を維持。下り梯子が無ければ上り傾向へ切り替える',()=>{
+test('直進敵: 初期は上下傾向なし。初回の梯子移動で確定し、逆向きしかなければ切り替える',()=>{
  let g=mk(['          ','  H       ','  H       ','  H       ','==========']);
  let e=new WC.Enemies['2'](2,1);g.enemies=[e];put(e,2,1);
- let d=e.decide(g);ok(d&&d[0]===0&&d[1]===1,'下り梯子があれば下る');
- e.vertical=1;put(e,2,3);d=e.decide(g);ok(d&&d[0]===0&&d[1]===-1,'下り梯子がなく上り梯子だけなら上る');
- ok(e.vertical===-1,'上った後は上り傾向に切り替わる');
+ ok(e.vertical===null,'初期状態では上下傾向が未確定');
+ let d=e.decide(g);ok(d&&d[0]===0&&d[1]===1,'梯子を実際に下る移動を選ぶ');
+ ok(e.vertical===1,'初回に下った時点で下り傾向が決まる');
+ put(e,2,3);d=e.decide(g);ok(d&&d[0]===0&&d[1]===-1,'下り梯子がなく上り梯子だけなら上る');
+ ok(e.vertical===-1,'逆向きに上った後は上り傾向へ切り替わる');
  const left=new WC.Enemies['←'](2,3),right=new WC.Enemies['→'](2,3),up=new WC.Enemies['↑'](2,3),down=new WC.Enemies['↓'](2,3);
  ok(left.dir===-1&&right.dir===1,'配置時に左右の初期方向を選べる');
- ok(up.vertical===-1&&down.vertical===1,'配置時に上下の初期傾向を選べる');
+ ok(up.vertical===null&&down.vertical===null&&up.firstVertical===-1&&down.firstVertical===1,'↑/↓配置も傾向を事前確定せず初回の梯子方向だけ指定する');
 });
 test('追尾と親方: 通常落下の着地時にプレイヤーと同じ高さならプレイヤー側へ歩く',()=>{
  for(const Enemy of [WC.Enemies['1'],WC.Enemies['3']]){
