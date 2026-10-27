@@ -26,7 +26,12 @@ WC.Enemies['1']=class extends WC.Enemy{
     }
    }
   }
-  // 実際に移動を終えて梯子のマスに到着したときだけ判定する。
+  // 梯子の先端の一つ上のマスに到着した瞬間も、プレイヤーとの高さを再判定する。
+  if(L.ladder(this.x,this.y+1)&&!L.ladder(this.x,this.y)){
+   this._chaserAtLadderTip=true;
+   if(this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+  }
+  // 梯子のマスに到着したイベントで、同じ高さならプレイヤー側へ向き直る。
   if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
  }
  // この敵自身が異常落下を始めた場合に限り、スタン復帰時の再判定を有効にする。
@@ -50,7 +55,10 @@ WC.Enemies['1']=class extends WC.Enemy{
  }
  helpfulLadder(g,x,y,dy){
   const L=g.level;
-  return L.ladder(x,y)&&L.canStep(x,y,0,dy,this.bg);
+  // 通常の梯子上に加え、先端の一つ上から梯子へ降りる移動も有効とする。
+  const onLadder=L.ladder(x,y);
+  const aboveLadder=!onLadder&&L.ladder(x,y+1);
+  return (onLadder||aboveLadder)&&L.canStep(x,y,0,dy,this.bg);
  }
  ladderAhead(g,dy){
   const L=g.level,p=g.player;
@@ -65,6 +73,11 @@ WC.Enemies['1']=class extends WC.Enemy{
  }
  decide(g){
   const L=g.level,p=g.player;
+  // 先端の一つ上に着いたら高さを判定する。支えがなければ強制的に梯子へ一マス戻る。
+  if(this._chaserAtLadderTip){
+   this._chaserAtLadderTip=false;
+   if(!L.ground(this.x,this.y)&&!L.blocked(this.x,this.y+1)&&L.ladder(this.x,this.y+1))return[0,1];
+  }
   if(this.y===p.y){
    // 高さが同じという理由だけでは方向転換しない。梯子到着時の判定は arrive() が担当。
    if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
