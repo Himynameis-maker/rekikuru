@@ -111,9 +111,7 @@ WC.Enemies['1']=class extends WC.Enemy{
   const dx=this.ladderAhead(g,dy);
   if(dx!==null&&dx!==0){
    const dir=dx>0?1:-1;
-   // 選んだ梯子が前方なら進む。後方なら向きを変えず、現在の向きを維持する。
-   if(dir===this.dir&&L.canStep(this.x,this.y,dir,0,this.bg))return[dir,0];
-   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
+   this.dir=dir;
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
   // 有効な梯子が見つからない場合は直近の水平方向を維持する。
