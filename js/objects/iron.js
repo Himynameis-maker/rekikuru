@@ -1,8 +1,12 @@
-// I: 鉄柱(背景。通行を妨げない。地面とは別物なので壊れても地面は残る)。
-// 立っているマスで叩くと、真上にドラム缶・壁が載っている場合に限って鉄柱が壊れ、載っていた物が落ちる。
-// 何も載っていない鉄柱はただの背景。
+// I: 鉄柱(背景。通行を妨げない)。壁と同様にハンマー一撃で破壊でき、地面は残る。
+// 鉄柱の上にドラム缶・壁が載っている場合は、鉄柱が消えると載っていた物が落ちる。
 WC.Objects.I=class extends WC.Obj{
- constructor(x,y){super(x,y,'iron')}
- onHit(g){const L=g.level,d=L.get(this.x,this.y-1);
-  if(d&&d.release&&d.st==0){L.del(this.x,this.y);d.release(g)}}
+ constructor(x,y){super(x,y,'iron');this.needsBreak=true}
+ onHit(g){
+  const L=g.level,d=L.get(this.x,this.y-1);
+  if(d&&d.release&&d.st==0)d.release(g);
+  L.del(this.x,this.y);
+  WC.Sound.play('wall');
+ }
+ onBlast(g){this.onHit(g)}
 };
