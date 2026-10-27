@@ -59,7 +59,8 @@ WC.Enemies['1']=class extends WC.Enemy{
  // 障害物が実際に進行方向の隣マスを塞いでいる場合だけ反転する。
  reverseIfObstacle(g){
   const L=g.level,nx=L.wrap(this.x+this.dir);
-  if(!this.bg&&L.blocked(nx,this.y))this.dir*=-1;
+  // ドラム缶の上から普通の足場へは上がれない。この段差も壁と同じく反転理由にする。
+  if(!this.bg&&(L.blocked(nx,this.y)||L.onDrum(this.x,this.y)&&L.ground(nx,this.y)))this.dir*=-1;
  }
  helpfulLadder(g,x,y,dy){
   const L=g.level;
