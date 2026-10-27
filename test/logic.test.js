@@ -78,6 +78,16 @@ test('左右ループ: 連続して動く/またいで当たる/火の玉はル�
  const ch=new WC.Enemies['1'](9,2);g.player.rx=-.4;ch.rx=9;ok(g.near(g.player,ch)<.65,'端をまたいで接触判定');
  const fb=new WC.Fireball(0,2,1);fb.rx=-.3;g.player.rx=9;ok(g.near(fb,g.player)>.65,'火の玉はループしない');
 });
+test('追尾と親方: 通常落下の着地時にプレイヤーと同じ高さならプレイヤー側へ歩く',()=>{
+ for(const Enemy of [WC.Enemies['1'],WC.Enemies['3']]){
+  const g=mk(['          ','  1       ','          ','P========W','          ']);
+  const e=new Enemy(2,1);g.enemies=[e];g.killPlayer=()=>{};
+  put(g.player,7,3);put(e,2,1);
+  run(g,1.5);
+  ok(e.y===3,'通常落下してプレイヤーと同じ高さに着地する');
+  ok(e.dir===1,'着地イベントでプレイヤー側(右)を向く');
+ }
+});
 test('裏側の敵(親方)に殴られたら異常落下でミスではない',()=>{
  const g=mk(['         ','         ','P==3====W','         ','=========','         ','=========','         ']);
  g.enemies=g.level.spawns.map(s=>new s.E(s.x,s.y));
