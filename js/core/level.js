@@ -34,8 +34,9 @@ WC.Level=class{
   const nx=this.wrap(x+dx),ny=y+dy;
   if(ny<0||ny>=this.h)return false;
   if(!bg&&this.blocked(nx,ny))return false;
-  // 梯子の先端の一つ上のマスは、足場がなければ横移動できない。
-  if(dx&&!this.ladder(x,y)&&this.ladder(x,y+1)&&!this.ground(x,y)&&(!bg?!this.blocked(x,y+1):true))return false;
+  // 梯子の先端の一つ上では、横の足場へ移るのは許可する。
+  // 現在地にも移動先にも足場がなければ、空中へ横移動できない。
+  if(dx&&!this.ladder(x,y)&&this.ladder(x,y+1)&&!this.ground(x,y)&&!this.ground(nx,y)&&(!bg?!this.blocked(x,y+1):true))return false;
   if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // ドラム缶の上から隣の足場へは上がれない
   // 梯子の最上段から、その一つ上のマスへ登ることを許可する。
   if(dy<0&&this.ladder(x,y)&&ny>=0&&!this.ladder(x,ny))return true;
