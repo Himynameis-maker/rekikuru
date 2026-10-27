@@ -17,8 +17,11 @@ WC.Enemies['1']=class extends WC.Enemy{
   const p=g.player,L=g.level;
   if(this._chaserNormalFalling){
    this._chaserNormalFalling=false;
-   // 通常落下後、プレイヤーと高さが違う場合だけ、有効な梯子へ向きを合わせる。
-   if(this.y!==p.y){
+   if(this.y===p.y){
+    // 通常落下の着地先がプレイヤーと同じ高さなら、その着地イベントでプレイヤー側へ向き直る。
+    if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   }else{
+    // 高さが違う場合は、有効な梯子があればそちらへ向きを合わせる。
     const dy=p.y<this.y?-1:1,dx=this.ladderAhead(g,dy);
     if(dx!==null&&dx!==0){
      const dir=dx>0?1:-1;
