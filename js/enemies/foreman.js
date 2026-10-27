@@ -29,7 +29,8 @@ WC.Enemies['3']=class extends WC.Enemies['1']{
   }
   if(this._foremanResume){
    this._foremanResume=false;
-   // 休止終了は追跡判定のトリガーではない。現在の向きのまま通常移動へ戻る。
+   // 休止直後に共通ルールで追跡先を再判定する。
+   this._chaserRecheck=true;
    return super.decide(g)
   }
   if(this._stepsUntilPause<=0){
