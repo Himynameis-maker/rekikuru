@@ -22,22 +22,13 @@ WC.Enemies['1']=class extends WC.Enemy{
   const p=g.player,L=g.level;
   if(this._chaserNormalFalling){
    this._chaserNormalFalling=false;
-   if(this.y===p.y){
-    // 通常落下の着地イベントで、同じ高さならプレイヤー側へ向き直る。
-    this.turnTowardPlayer(g);
-   }else{
-    // 着地イベントでは向きを変えず、次の正規の判断タイミングまで現在の向きを保つ。
-    // 梯子の選択は decide() が行うが、梯子が後方でも歩行中に反転しない。
-   }
+   // 通常落下の着地時、同じ高さならプレイヤー側へ向き直る。
+   if(this.y===p.y)this.turnTowardPlayer(g);
   }
   // 梯子の先端の一つ上のマスに到着したイベント。
   if(L.ladder(this.x,this.y+1)&&!L.ladder(this.x,this.y)){
    this._chaserAtLadderTip=true;
    if(this.y===p.y)this.turnTowardPlayer(g);
-   else if(p.x!==this.x){
-    // 高さが違う場合、別の梯子がないことだけを理由に方向転換しない。
-    // 後方の梯子を目指す場合も、障害物など正規の反転地点まで現在の向きを保つ。
-   }
   }
   // 梯子のマスに到着したイベントで、同じ高さならプレイヤー側へ向き直る。
   if(L.ladder(this.x,this.y)&&this.y===p.y)this.turnTowardPlayer(g);
@@ -120,9 +111,7 @@ WC.Enemies['1']=class extends WC.Enemy{
   const dx=this.ladderAhead(g,dy);
   if(dx!==null&&dx!==0){
    const dir=dx>0?1:-1;
-   // 高さが変わっただけでは歩行中に反転しない。
-   // 選んだ梯子が現在の進行方向にある場合だけ、そのまま向かって進む。
-   // 梯子が後方なら現在の向きを維持し、障害物など正規の反転地点で向きを変える。
+   // 選んだ梯子が前方なら進む。後方なら向きを変えず、現在の向きを維持する。
    if(dir===this.dir&&L.canStep(this.x,this.y,dir,0,this.bg))return[dir,0];
    if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
