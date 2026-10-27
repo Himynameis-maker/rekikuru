@@ -2,22 +2,31 @@
 // 左右端をまたいだ経路探索は行わない。実際の移動自体は Level.wrap に従う。
 WC.Enemies['1']=class extends WC.Enemy{
  constructor(x,y,n='chaser'){super(x,y,n);this.bg=false}
- // 梯子のマスに到着したイベントでのみ、同じ高さならプレイヤー側へ向き直る。
+ // 落下開始を明示的に記録する。Actor.fast は通常落下後も残るため、
+ // fast だけで着地を判定すると、その後の横移動でも落下後処理が誤発火する。
+ next(g){
+  const L=g.level;
+  const startsNormalFall=!this.abn&&!this.hidden&&!L.standable(this.x,this.y,this.bg)&&this.y<L.h-1;
+  if(startsNormalFall)this._chaserNormalFalling=true;
+  super.next(g);
+ }
+ // 到着イベントだけを処理する。プレイヤーと同じ高さになっただけでは向きを変えない。
  arrive(g){
   super.arrive(g);
   if(this.hidden||this.abn)return;
   const p=g.player,L=g.level;
-  // 通常落下の着地時: 同じ水平列に、プレイヤーの高さへ近づける梯子があればそちらへ向く。
-  // fast は落下移動を表す。異常落下は上の abn 判定で除外済み。
-  if(this.fast&&this.y!==p.y){
-   const dy=p.y<this.y?-1:1;
-   const dx=this.ladderAhead(g,dy);
-   if(dx!==null&&dx!==0){
-    const dir=dx>0?1:-1;
-    if(L.canStep(this.x,this.y,dir,0,this.bg))this.dir=dir;
+  if(this._chaserNormalFalling){
+   this._chaserNormalFalling=false;
+   // 通常落下後、プレイヤーと高さが違う場合だけ、有効な梯子へ向きを合わせる。
+   if(this.y!==p.y){
+    const dy=p.y<this.y?-1:1,dx=this.ladderAhead(g,dy);
+    if(dx!==null&&dx!==0){
+     const dir=dx>0?1:-1;
+     if(L.canStep(this.x,this.y,dir,0,this.bg))this.dir=dir;
+    }
    }
   }
-  // 梯子のマスへの到着イベントで、同じ高さならプレイヤー側へ向き直る。
+  // 実際に移動を終えて梯子のマスに到着したときだけ判定する。
   if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
  }
  // この敵自身が異常落下を始めた場合に限り、スタン復帰時の再判定を有効にする。
