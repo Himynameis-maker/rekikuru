@@ -40,6 +40,9 @@ WC.Level=class{
   if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // ドラム缶の上から隣の足場へは上がれない
   // 梯子の最上段から、その一つ上のマスへ登ることを許可する。
   if(dy<0&&this.ladder(x,y)&&ny>=0&&!this.ladder(x,ny))return true;
+  // 梯子の最上段の横にいる場合も、上の足場へ一段上がれる。
+  // 梯子の途中から壁登りできないよう、横の梯子がこの段で終わることを確認する。
+  if(dy<0&&this.ground(x,ny)&&[-1,1].some(d=>this.ladder(this.wrap(x+d),y)&&!this.ladder(this.wrap(x+d),y-1)))return true;
   return dy?this.ladder(x,ny):true}
  dest(x,y,dx,dy,bg){ // 1歩+落下後のマス
   if(!this.canStep(x,y,dx,dy,bg))return null;
