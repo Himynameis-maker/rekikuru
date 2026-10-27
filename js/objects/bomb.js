@@ -13,7 +13,7 @@ WC.Objects.B=class extends WC.Obj{
    const x=L.wrap(this.x+dir*offset),y=this.y,o=L.get(x,y);
    if(!o||!o.onBlast)return;
    // 連鎖先は破壊可能な物だけ。扉・爆弾などに当たったらここで止める。
-   if(!o.needsBreak)return;
+   if(!(o.needsBreak||o.destructible))return;
    o.onBlast(g);
    // 今のオブジェクトが実際に消えたときだけ、その隣を0.2秒後に処理する。
    if(L.get(x,y)!==o){
@@ -24,7 +24,7 @@ WC.Objects.B=class extends WC.Obj{
   const x=L.wrap(this.x+dir),o=L.get(x,this.y);
   if(!o||!o.onBlast)return;
   // 爆弾に直接隣接する物には、従来どおり通常の爆風を適用する。
-  if(!o.needsBreak){o.onBlast(g);return}
+  if(!(o.needsBreak||o.destructible)){o.onBlast(g);return}
   o.onBlast(g);
   if(L.get(x,this.y)!==o){
    offset++;
