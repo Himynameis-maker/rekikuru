@@ -8,20 +8,28 @@ WC.Objects.B=class extends WC.Obj{
  light(t,byPlayer){if(this.lit)return;this.lit=true;this.t=t;this.byPlayer=byPlayer;this.escaped=false}
  hitSide(g,dir){
   const L=g.level;
+  let offset=1;
   const hitNext=()=>{
-   const x=L.wrap(this.x+dir),y=this.y,o=L.get(x,y);
+   const x=L.wrap(this.x+dir*offset),y=this.y,o=L.get(x,y);
    if(!o||!o.onBlast)return;
-   // 横連鎖は破壊対象だけを伝播する。扉や爆弾などは通常の爆風処理だけ行い、連鎖を止める。
-   if(!o.needsBreak){o.onBlast(g);return}
+   // 連鎖先は破壊可能な物だけ。扉・爆弾などに当たったらここで止める。
+   if(!o.needsBreak)return;
    o.onBlast(g);
-   // 一撃で実際に消えたときだけ、0.2秒後にその隣を調べる。
-   if(L.get(x,y)!==o)g.later(.2,hitNext);
+   // 今のオブジェクトが実際に消えたときだけ、その隣を0.2秒後に処理する。
+   if(L.get(x,y)!==o){
+    offset++;
+    g.later(.2,hitNext);
+   }
   };
   const x=L.wrap(this.x+dir),o=L.get(x,this.y);
   if(!o||!o.onBlast)return;
+  // 爆弾に直接隣接する物には、従来どおり通常の爆風を適用する。
   if(!o.needsBreak){o.onBlast(g);return}
   o.onBlast(g);
-  if(L.get(x,this.y)!==o)g.later(.2,hitNext);
+  if(L.get(x,this.y)!==o){
+   offset++;
+   g.later(.2,hitNext);
+  }
  }
  update(dt,g){if(!this.lit)return;
   const k=g.keys;if(this.byPlayer&&(k.left||k.right||k.up||k.down))this.escaped=true;
