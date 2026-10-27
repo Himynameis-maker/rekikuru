@@ -9,6 +9,8 @@ WC.Player=class extends WC.Actor{
  decide(g){const k=g.keys,L=g.level,dx=(k.right?1:0)-(k.left?1:0),dy=(k.down?1:0)-(k.up?1:0);
   if(dx)this.dir=dx;
   if(dy&&L.canStep(this.x,this.y,0,dy))return[0,dy];
+  // 梯子先端の一つ上のマスでは、プレイヤーは横移動できない。
+  if(dx&&L.ladder(this.x,this.y+1)&&!L.ladder(this.x,this.y))return null;
   if(dx&&L.canStep(this.x,this.y,dx,0))return[dx,0];
   return null}
  trap(){}
