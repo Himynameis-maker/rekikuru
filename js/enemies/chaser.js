@@ -71,24 +71,34 @@ WC.Enemies['1']=class extends WC.Enemy{
  }
  ladderAhead(g,dy){
   const L=g.level,p=g.player;
-  // 現在地の梯子・先端上なら、その場で上下移動できる。
+  // 現在地の梯子・先端上で上下移動できるなら、別の梯子を探さない。
   if((L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)))&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
-  // 梯子の途中の横から上段へ登れる場合は、梯子の位置を返してそちらへ向かう。
-  // helpfulLadder() は梯子上の候補マスを探すため、現在地からの横隣の梯子はここで別に扱う。
+  // 梯子の途中の横から上段へ登れる場合。検索時は左右端を越えて反対側へ回り込まない。
   if(dy<0&&!L.ladder(this.x,this.y)&&!L.ladder(this.x,this.y+1)&&L.canStep(this.x,this.y,0,dy,this.bg)){
-   const sides=[-1,1].filter(d=>L.ladder(L.wrap(this.x+d),this.y));
+   const sides=[-1,1].filter(d=>this.x+d>=0&&this.x+d<L.w&&L.ladder(this.x+d,this.y));
    if(sides.length){
     const preferred=p.x===this.x?this.dir:(p.x>this.x?1:-1);
     return sides.includes(preferred)?preferred:sides[0];
    }
   }
-  const dir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
-  // 現在の水平列だけをプレイヤー側へ検索し、左右端を越えて探さない。
-  for(let x=this.x+dir;x>=0&&x<L.w;x+=dir){
-   if(this.helpfulLadder(g,x,this.y,dy))return x-this.x;
-   if(x===p.x)break;
+  // 高さを一段でもプレイヤー側へ近づけられる梯子を、歩いて到達できる範囲から探す。
+  // 候補探索では x=0 と x=L.w-1 を壁として扱い、Level.wrap() による迂回はしない。
+  const candidates=[];
+  for(let x=0;x<L.w;x++){
+   if(x===this.x||!this.helpfulLadder(g,x,this.y,dy))continue;
+   const dir=x>this.x?1:-1;
+   let cx=this.x,reachable=true;
+   while(cx!==x){
+    const nx=cx+dir;
+    if(nx<0||nx>=L.w||!L.canStep(cx,this.y,dir,0,this.bg)){reachable=false;break}
+    cx=nx;
+   }
+   if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
-  return null;
+  if(!candidates.length)return null;
+  const towardPlayer=p.x===this.x?this.dir:(p.x>this.x?1:-1);
+  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===towardPlayer?-1:b.dir===towardPlayer?1:0));
+  return candidates[0].x-this.x;
  }
  decide(g){
   const L=g.level,p=g.player;
