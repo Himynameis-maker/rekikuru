@@ -112,7 +112,7 @@ test('直進敵: 縦移動は一段だけ。次は横を優先し、逆向きし
  let d=e.decide(g);ok(d&&d[0]===0&&d[1]===1,'梯子を実際に下る移動を選ぶ');
  ok(e.vertical===1,'初回に下った時点で下り傾向が決まる');
  d=e.decide(g);ok(d&&d[0]===1&&d[1]===0,'縦に一段移動した次は、梯子があっても横へ進む');
- e.horizontalNext=true;put(e,2,3);d=e.decide(g);ok(d&&d[0]===0&&d[1]===-1,'下り梯子がなく上り梯子だけなら上る');
+ e.horizontalNext=false;put(e,2,3);d=e.decide(g);ok(d&&d[0]===0&&d[1]===-1,'下り梯子がなく上り梯子だけなら上る');
  ok(e.vertical===-1,'逆向きに上った後は上り傾向へ切り替わる');
  const left=new WC.Enemies['←'](2,3),right=new WC.Enemies['→'](2,3),up=new WC.Enemies['↑'](2,3),down=new WC.Enemies['↓'](2,3);
  ok(left.dir===-1&&right.dir===1,'配置時に左右の初期方向を選べる');
