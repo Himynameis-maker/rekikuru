@@ -30,4 +30,7 @@ body:not(.edit) .ed,body:not(.play) .pl,body:not(.title) #titlebox,body.title .n
 details details{margin-left:12px}
 #pbody label{display:flex;gap:8px;align-items:center;margin:6px 0}#pbody input{flex:1}
 textarea{width:100%;height:50vh;font:12px monospace;background:#222;color:#ddd;user-select:text;-webkit-user-select:text}
-\n#runnerDirection{gap:6px}\n#runnerDirection span{font-size:12px;color:#ccc}\n#runnerDirection button.sel{outline:2px solid #fc3;background:#554719}\n
+
+#runnerDirection{gap:6px}
+#runnerDirection span{font-size:12px;color:#ccc}
+#runnerDirection button.sel{outline:2px solid #fc3;background:#554719}
