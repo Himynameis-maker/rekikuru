@@ -88,13 +88,13 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
 - **壁**: 背景オブジェクト(通行を妨げない)。立っているマスで叩くと HP-1。爆風でも -1。
 - **梯子 L**: 叩く/爆風で壊れ、上下の L に連鎖して壊れる(`breakInterval`)。掴まっていた敵は異常落下、プレイヤーはその場から真下へ落ちる。H は壊れない。
 - **ドラム缶 O**: 常に通行止めの1マス障害物。上から落ちてきたキャラはめり込まず上に立つ。
-- **鉄柱 I**: 背景。立っているマスで叩くと、**真上にドラム缶/壁が載っているときだけ**鉄柱が壊れて(地面は残る)、載っていた物が `fallDelay` 秒後に
+- **鉄柱 I**: 背景。爆風では破壊可能(クリア条件のカウント対象ではない)。ハンマーで叩くと、真上にドラム缶/壁が載っている場合は載っていた物を `fallDelay` 秒後に落とし、鉄柱自体は壁と同様に消える(地面は残る)。載っていた物がない場合も鉄柱自体は消える。載っていた物が `fallDelay` 秒後に
   「鉄柱が立っていた地面」まで落ちてそのマスに残る(1つ下の段ではない)。何も載っていない鉄柱は叩いても何も起きない。
   落ちるドラム缶: 同じ列のプレイヤーは死亡、敵は撃破。落ちる壁: 無害・落下中は壊せない。着地先に別オブジェクトがあれば割れて消える。
 - **ドラム缶の上の「詰み」は仕様**: ドラム缶の天面は床より少し低い。穴(足場に挟まれたドラム缶の上)に降りると左右の足場へ上がれず出られない
   (梯子が隣にあるか、片側が空いていれば出られる)。敵も同じ。詰んだら敵に倒されるのを待つだけで、救済処理は無い(意図通り)。
 - **爆弾 B**: 叩くと導火線 `fuse` 秒後に起爆、そのマスのキャラは異常落下(叩いた本人は方向入力で逃げれば免れる)。
-  隣接の壁・L梯子に1ダメージ、扉を開け、隣の爆弾に連鎖(`chainDelay`)。
+  上下左右の隣接物に通常の爆風を適用する。横方向は、隣の破壊可能な物が爆風一回分で消えた場合、その隣の破壊可能な物へ連鎖し、破壊ごとに `0.2` 秒待つ。消えなかった場合や破壊不能物に当たった場合は連鎖を止める。壁・L梯子・鉄柱は破壊可能。扉を開け、隣の爆弾に連鎖(`chainDelay`)。鉄柱はクリア条件のカウント対象ではない。
 - **扉 D**: 叩くと `openTime` 秒開く。開いた扉に着いた敵(noDoor でない)は隠れる。全敵が隠れると強制的に扉が開き、敵が出てくる(`checkAllHidden`/`onExit`)。
 - **異常落下(`startAbn`)**: 床を無視して最下段まで速く落ちる(ドラム缶の上で止まる)→着いたら `fall.stun` 秒気絶し、速度 `fall.boost`×lv アップ(lv最大2)。プレイヤーは落下中ハンマー不可。
 - **追尾 1/4**: BFS(`Level.step`)で落下込みの最短経路。4は高速。**直進 2**: プレイヤー無視で一方向、梯子があれば1マス上り次は横へ、障害物で反転。
@@ -463,32 +463,63 @@ WC.Objects.O=class extends WC.Load{
 };
 
 ===== FILE: js/objects/iron.js =====
-// I: 鉄柱(背景。通行を妨げない。地面とは別物なので壊れても地面は残る)。
-// 立っているマスで叩くと、真上にドラム缶・壁が載っている場合に限って鉄柱が壊れ、載っていた物が落ちる。
-// 何も載っていない鉄柱はただの背景。
+// I: 鉄柱(背景。通行を妨げない)。壁と同様にハンマー一撃で破壊でき、地面は残る。
+// 鉄柱の上にドラム缶・壁が載っている場合は、鉄柱が消えると載っていた物が落ちる。
 WC.Objects.I=class extends WC.Obj{
- constructor(x,y){super(x,y,'iron')}
- onHit(g){const L=g.level,d=L.get(this.x,this.y-1);
-  if(d&&d.release&&d.st==0){L.del(this.x,this.y);d.release(g)}}
+ constructor(x,y){super(x,y,'iron');this.destructible=true}
+ onHit(g){
+  const L=g.level,d=L.get(this.x,this.y-1);
+  if(d&&d.release&&d.st==0)d.release(g);
+  L.del(this.x,this.y);
+  WC.Sound.play('wall');
+ }
+ onBlast(g){this.onHit(g)}
 };
-
 ===== FILE: js/objects/bomb.js =====
 // 爆弾: 叩く(または連鎖)で点火→起爆。起爆時、そのマスにいるキャラは全員異常落下。
-// ただし叩いた本人は、点火から起爆までの猶予(CONFIG.bomb.fuse)の間に方向入力すれば巻き込まれない。
-// 起爆時、隣接(上下左右)の壁・壊せる梯子を1ダメージ分破壊、扉を開き、隣の爆弾を連鎖点火。
+// 横方向は、破壊可能なオブジェクトを一撃ずつ連鎖破壊する。次のマスへは0.2秒待って進む。
+// 上下方向の隣接オブジェクト、扉、隣の爆弾は従来どおり起爆時に処理する。
 WC.Objects.B=class extends WC.Obj{
  constructor(x,y){super(x,y,'bomb');this.lit=false}
  onHit(g,by){this.light(WC.CONFIG.bomb.fuse,true)}
  onBlast(g){this.light(WC.CONFIG.bomb.chainDelay,false)}
  light(t,byPlayer){if(this.lit)return;this.lit=true;this.t=t;this.byPlayer=byPlayer;this.escaped=false}
+ hitSide(g,dir){
+  const L=g.level;
+  let offset=1;
+  const hitNext=()=>{
+   const x=L.wrap(this.x+dir*offset),y=this.y,o=L.get(x,y);
+   if(!o||!o.onBlast)return;
+   // 連鎖先は破壊可能な物だけ。扉・爆弾などに当たったらここで止める。
+   if(!(o.needsBreak||o.destructible))return;
+   o.onBlast(g);
+   // 今のオブジェクトが実際に消えたときだけ、その隣を0.2秒後に処理する。
+   if(L.get(x,y)!==o){
+    offset++;
+    g.later(.2,hitNext);
+   }
+  };
+  const x=L.wrap(this.x+dir),o=L.get(x,this.y);
+  if(!o||!o.onBlast)return;
+  // 爆弾に直接隣接する物には、従来どおり通常の爆風を適用する。
+  if(!(o.needsBreak||o.destructible)){o.onBlast(g);return}
+  o.onBlast(g);
+  if(L.get(x,this.y)!==o){
+   offset++;
+   g.later(.2,hitNext);
+  }
+ }
  update(dt,g){if(!this.lit)return;
   const k=g.keys;if(this.byPlayer&&(k.left||k.right||k.up||k.down))this.escaped=true;
   this.t-=dt;if(this.t>0)return;
   const L=g.level;L.del(this.x,this.y);WC.Sound.play('bomb');
   g.actors().forEach(a=>{if(a.x==this.x&&a.y==this.y&&!(a===g.player&&this.escaped))a.startAbn()});
-  for(const d of[[1,0],[-1,0],[0,1],[0,-1]]){const o=L.get(L.wrap(this.x+d[0]),this.y+d[1]);o&&o.onBlast&&o.onBlast(g)}}
+  // 横は左右それぞれ、破壊が成立した場合だけ0.2秒間隔で連鎖。
+  this.hitSide(g,1);this.hitSide(g,-1);
+  // 上下は従来どおり隣接マスにだけ作用する。
+  for(const dy of[-1,1]){const o=L.get(this.x,this.y+dy);o&&o.onBlast&&o.onBlast(g)}
+ }
 };
-
 ===== FILE: js/objects/door.js =====
 WC.Objects.D=class extends WC.Obj{
  constructor(x,y){super(x,y,'door');this.open=0;this.force=false}
@@ -888,6 +919,23 @@ test('火の玉: 床の多い段すべてに出る/当たるとミス',()=>{
  put(g3.player,10,8);g3.enemies.push(new WC.Fireball(0,8,1));for(let i=0;i<360&&g3.state=='play';i++)g3.update(1/60);
  ok(g3.state=='dead','同じ段のプレイヤーに当たるとミス');
 });
+test('爆弾: 横方向は破壊成立時だけ0.2秒間隔で連鎖し、鉄も消える',()=>{
+ const g=mk(['          ','          ','PBWIW    W','==========','          ']);
+ const b=g.level.get(1,2),iron=g.level.get(3,2);
+ ok(!!b&&!!iron,'爆弾と鉄柱が配置されている');
+ const clearBefore=objs(g).filter(o=>o.needsBreak).length;
+ b.light(0,false);b.update(1,g);
+ ok(!g.level.get(2,2),'最初の壁は起爆時に破壊される');
+ ok(g.level.get(3,2)===iron&&!!g.level.get(4,2),'隣の鉄と壁は間隔待ちで残る');
+ ok(g.timers.length===1,'次の破壊までタイマーを一つ予約する');
+ g.timers.shift().fn();
+ ok(!g.level.get(3,2)&&!!g.level.get(4,2),'次の間隔で鉄柱が消え、さらに隣の壁は待つ');
+ ok(g.timers.length===1,'鉄の破壊後も次の間隔を予約する');
+ g.timers.shift().fn();
+ ok(!g.level.get(4,2),'さらに0.2秒後に隣の壁も破壊される');
+ ok(!iron.needsBreak,'鉄柱は破壊可能だがクリア条件の数には含めない');
+ ok(objs(g).filter(o=>o.needsBreak).length===clearBefore-2,'破壊された壁だけクリア対象数が減る');
+});
 test('ランダム操作で壊れない(例外・不正な位置が出ない)',()=>{
  const K=['left','right','up','down','hit'];
  for(let n=0;n<40;n++){const g=new WC.Game(WC.Levels.sample);let done=false;g.onOver=g.onClear=()=>done=true;let cur={};
@@ -901,7 +949,6 @@ test('エディタの全パレットが読み込める',()=>{
  for(const t of WC.TOOLS)if(t.ch!==' '&&t.ch!=='='){const L=new WC.Level('  '+t.ch+'  \n=====');ok(L.objs.size>0||L.spawns.length>0||L.player.x==2,`${t.n}(${t.ch})`)}
 });
 console.log(fails?`\n${fails} 件失敗 / ${count} 件`:`\n全部OK (${count} 件)`);process.exit(fails?1:0);
-
 ===== FILE: tools/make-context.js =====
 #!/usr/bin/env node
 // npm run context → context.txt を生成する。
