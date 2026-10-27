@@ -7,6 +7,17 @@ WC.Enemies['1']=class extends WC.Enemy{
   super.arrive(g);
   if(this.hidden||this.abn)return;
   const p=g.player,L=g.level;
+  // 通常落下の着地時: 同じ水平列に、プレイヤーの高さへ近づける梯子があればそちらへ向く。
+  // fast は落下移動を表す。異常落下は上の abn 判定で除外済み。
+  if(this.fast&&this.y!==p.y){
+   const dy=p.y<this.y?-1:1;
+   const dx=this.ladderAhead(g,dy);
+   if(dx!==null&&dx!==0){
+    const dir=dx>0?1:-1;
+    if(L.canStep(this.x,this.y,dir,0,this.bg))this.dir=dir;
+   }
+  }
+  // 梯子のマスへの到着イベントで、同じ高さならプレイヤー側へ向き直る。
   if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
  }
  // 異常落下のスタンから復帰した瞬間だけ方向を再判定する。
