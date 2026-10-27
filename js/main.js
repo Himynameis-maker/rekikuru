@@ -6,7 +6,7 @@
  // キャンバスを残り領域にアスペクト比維持でフィット(ページはスクロールさせない)
  function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k)+'px';cv.style.height=Math.floor(cv.height*k)+'px'}
  WC.onFit=fit;addEventListener('resize',fit);
- document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('button'))e.preventDefault()}); // ボタンにフォーカスさせない
+ // ボタン全体へのpointerdown preventDefaultはクリックを妨げるため設定しない。
  function setMode(m){mode=m;document.body.className=m;
   if(m=='title'){G=null;cv.width=640;cv.height=480;c.fillStyle='#000';c.fillRect(0,0,640,480)}
   if(m=='edit'){G=null;sizes();E.render(c)}
