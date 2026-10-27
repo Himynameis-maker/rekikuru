@@ -104,6 +104,34 @@ test('火の玉: 床の多い段すべてに出る/当たるとミス',()=>{
  put(g3.player,10,8);g3.enemies.push(new WC.Fireball(0,8,1));for(let i=0;i<360&&g3.state=='play';i++)g3.update(1/60);
  ok(g3.state=='dead','同じ段のプレイヤーに当たるとミス');
 });
+test('親方: 壁を完全破壊した時だけ互いを異常落下させ、爆弾は叩かない',()=>{
+ let g=mk(['          ','          ','P w====W  ','==========']);
+ let e=new WC.Enemies['3'](2,2);g.enemies=[e];put(g.player,0,2);
+ g.hit(2,2,g.player);
+ ok(!e.abn,'耐久2の壁を一撃で壊せない間は親方を落とさない');
+ g.level.del(2,2);
+ g.level.objs.set('2,2',new WC.Objects.W(2,2));
+ g.level.get(2,2).hp=1;
+ g.hit(2,2,g.player);
+ ok(e.abn,'壁を完全破壊した一振りで親方が異常落下する');
+ g=mk(['          ','          ','P B====W  ','==========']);
+ e=new WC.Enemies['3'](2,2);g.enemies=[e];put(g.player,0,2);
+ g.hit(2,2,g.player);
+ ok(!e.abn&&g.level.get(2,2).lit,'爆弾を叩いても親方は落下しない');
+});
+test('親方: ハンマーで完全破壊した時だけプレイヤーを異常落下させ、落下後にスタンしない',()=>{
+ const g=mk(['          ','          ','P W====W  ','==========']);
+ const e=new WC.Enemies['3'](2,2);g.enemies=[e];put(g.player,2,2);
+ e.decide(g);
+ run(g,1);
+ ok(g.player.abn,'親方が壁を完全破壊したらプレイヤーは異常落下する');
+ run(g,2);
+ ok(!g.player.abn&&g.player.stun===0,'プレイヤーは着地後にスタンしない');
+ const h=mk(['          ','          ','P W====W  ','==========']);
+ const f=new WC.Enemies['3'](2,2);h.enemies=[f];put(h.player,0,2);
+ f.startAbn();run(h,2);
+ ok(!f.abn&&f.stun===0,'親方も着地後にスタンしない');
+});
 test('爆弾: 横方向は破壊成立時だけ0.2秒間隔で連鎖し、鉄も消える',()=>{
  const g=mk(['          ','          ','PBWIW    W','==========','          ']);
  const b=g.level.get(1,2),iron=g.level.get(3,2);
