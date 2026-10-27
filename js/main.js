@@ -16,15 +16,15 @@
   cv.width=G.level.w*WC.CONFIG.tile;cv.height=G.level.h*WC.CONFIG.tile;setMode('play')}
  function sizes(){$('cw').value=E.grid[0].length;$('ch').value=E.grid.length}
  const sheet=$('sheet'),open=s=>{sheet.dataset.s=s;sheet.hidden=false;if(s=='code')$('lv').value=E.text()};
- E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));
+ E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));\n document.querySelectorAll('[data-runner-dir]').forEach(b=>b.onclick=()=>E.setRunnerDir(+b.dataset.runnerDir));E.setRunnerDir(E.runnerDir);
  $('bPlay').onclick=()=>play(E.text(),false);
  $('bEdit').onclick=()=>setMode('edit');
  $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
  $('bTest').onclick=()=>E.text().includes('P')?play(E.text(),true):msg('プレイヤー(P)を置いてね');
  $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.render(c)};
  $('cw').onchange=$('ch').onchange=()=>{E.resize(Math.min(40,Math.max(8,+$('cw').value||20)),Math.min(30,Math.max(6,+$('ch').value||15)));sizes();E.render(c);fit()};
- $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
- $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
+ $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG,runnerDir:E.runnerDir}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
+ $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);E.setRunnerDir(d.runnerDir===-1?-1:1);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
  $('bParam').onclick=()=>open('param');$('bCode').onclick=()=>open('code');$('sClose').onclick=()=>sheet.hidden=true;
  $('pReset').onclick=()=>{WC.Params.reset();WC.Params.build($('pbody'))};
  $('lvLoad').onclick=()=>{if($('lv').value.trim()){E.load($('lv').value);sizes();E.render(c);fit();sheet.hidden=true;msg('読み込んだ')}};
