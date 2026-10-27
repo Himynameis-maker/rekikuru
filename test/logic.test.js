@@ -220,4 +220,19 @@ test('ランダム操作で壊れない(例外・不正な位置が出ない)',(
 test('エディタの全パレットが読み込める',()=>{
  for(const t of WC.TOOLS)if(t.ch!==' '&&t.ch!=='='){const L=new WC.Level('  '+t.ch+'  \n=====');ok(L.objs.size>0||L.spawns.length>0||L.player.x==2,`${t.n}(${t.ch})`)}
 });
+test('追尾敵: 高さが違うだけでは梯子を探し直さず、指定イベント時だけ再判定する',()=>{
+ const g=mk(['          ','          ','P=======W ','==========']);
+ const e=new WC.Enemies['1'](4,2);g.enemies=[e];put(g.player,1,0);put(e,4,2);e.dir=1;
+ let searches=0;
+ e.helpfulLadder=()=>false;
+ e.ladderAhead=()=>{searches++;return -2};
+ e._chaserRecheck=false;
+ const ordinary=e.decide(g);
+ ok(searches===0,'通常歩行中は梯子探索を呼ばない');
+ ok(e.dir===1&&ordinary&&ordinary[0]===1,'高さが違っても現在の右向きを維持する');
+ e._chaserRecheck=true;
+ const triggered=e.decide(g);
+ ok(searches===1,'指定イベント後だけ梯子を再探索する');
+ ok(e.dir===-1&&triggered&&triggered[0]===-1,'再判定で有効な梯子の方向へ向く');
+});
 console.log(fails?`\n${fails} 件失敗 / ${count} 件`:`\n全部OK (${count} 件)`);process.exit(fails?1:0);
