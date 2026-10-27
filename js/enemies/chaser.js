@@ -1,34 +1,32 @@
-// 1: 追尾。A* / BFS は使わず、現在位置から見える梯子と直近の移動方向で判断する。
-// 左右端を物理的に通過することはできるが、端をまたいだ経路探索はしない。
+// 1: 追尾。経路探索はせず、同じ水平列で見つかる梯子と直近の移動方向で判断する。
+// 左右端をまたいだ経路探索は行わない。実際の移動自体は Level.wrap に従う。
 WC.Enemies['1']=class extends WC.Enemy{
  constructor(x,y,n='chaser'){super(x,y,n);this.bg=false}
- // 異常落下のスタンが終わった瞬間に方向を再判定する。
+ // 梯子のマスに到着したイベントでのみ、同じ高さならプレイヤー側へ向き直る。
+ arrive(g){
+  super.arrive(g);
+  if(this.hidden||this.abn)return;
+  const p=g.player,L=g.level;
+  if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+ }
+ // 異常落下のスタンから復帰した瞬間だけ方向を再判定する。
  update(dt,g){
   const wasStunned=this.stun>0;
-  const oldY=this.y;
   super.update(dt,g);
   const p=g.player;
-  // 梯子移動でプレイヤーと同じ高さに到達した瞬間だけ、プレイヤー側へ向き直る。
-  if(this.y!==oldY&&this.y===p.y&&!this.abn&&!this.hidden&&p.x!==this.x){
-   this.dir=p.x>this.x?1:-1;
-  }
-  // 異常落下のスタン復帰時に限って方向を再判定する。
   if(wasStunned&&this.stun<=0&&!this.abn&&!this.hidden&&this.y===p.y&&p.x!==this.x){
    this.dir=p.x>this.x?1:-1;
   }
  }
- // プレイヤーの高さに近づける上下移動ができる梯子を探す。
- // 端を越えて検索しないため、左右ループを利用した経路は組み立てない。
  helpfulLadder(g,x,y,dy){
   const L=g.level;
   return L.ladder(x,y)&&L.canStep(x,y,0,dy,this.bg);
  }
  ladderAhead(g,dy){
-  const L=g.level;
-  // まず現在位置の梯子を優先する。
+  const L=g.level,p=g.player;
   if(this.helpfulLadder(g,this.x,this.y,dy))return 0;
-  const p=g.player,dir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
-  // プレイヤー側へ向かう同じ高さの列だけを調べる。ループをまたいで探さない。
+  const dir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
+  // 現在の水平列だけをプレイヤー側へ検索し、左右端を越えて探さない。
   for(let x=this.x+dir;x>=0&&x<L.w;x+=dir){
    if(this.helpfulLadder(g,x,this.y,dy))return x-this.x;
    if(x===p.x)break;
@@ -37,26 +35,22 @@ WC.Enemies['1']=class extends WC.Enemy{
  }
  decide(g){
   const L=g.level,p=g.player;
-  // 同じ高さなら、梯子よりもプレイヤーへ向かう横移動を優先する。
   if(this.y===p.y){
-   // 同じ高さという理由だけでは毎フレーム方向転換しない。
-   // 梯子グリッドに完全に重なった場合のみ、指定イベントとしてプレイヤー側へ向き直る。
-   if(L.ladder(this.x,this.y)&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   // 高さが同じという理由だけでは方向転換しない。梯子到着時の判定は arrive() が担当。
    if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.dir*=-1;
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
-  // 高さが違う場合は、まずプレイヤーの高さへ近づく上下移動を試す。
   const dy=p.y<this.y?-1:1;
   if(this.helpfulLadder(g,this.x,this.y,dy))return[0,dy];
-  // 今いる列で上下に進めないなら、プレイヤー側にある有効な梯子へ向かう。
   const dx=this.ladderAhead(g,dy);
   if(dx!==null&&dx!==0){
    const dir=dx>0?1:-1;
    if(L.canStep(this.x,this.y,dir,0,this.bg)){this.dir=dir;return[dir,0]}
-   this.dir*=-1;
+   // 梯子へ向かう方向が障害物で塞がれている場合は、その反対へ向き直る。
+   this.dir=-dir;
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
-  // 役立つ梯子が見つからないときは、直近の横方向を維持して歩く。
+  // 有効な梯子が見つからない場合は直近の水平方向を維持する。
   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.dir*=-1;
   return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
  }
