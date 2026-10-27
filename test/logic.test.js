@@ -111,6 +111,13 @@ test('爆弾: 横方向は破壊成立時だけ0.2秒間隔で連鎖し、鉄も
  ok(!iron.needsBreak,'鉄柱は破壊可能だがクリア条件の数には含めない');
  ok(objs(g).filter(o=>o.needsBreak).length===clearBefore-2,'破壊された壁だけクリア対象数が減る');
 });
+test('梯子の横から一段上の実在する足場へ移動でき、梯子先端に自動足場を作らない',()=>{
+ const game=mk(['          ','   H=     ','   H      ','   H      ','=========='].join('\n'));
+ const L=game.level;
+ ok(!L.floor[1][3],'梯子の上端に自動足場を作らない');
+ ok(L.ground(4,1),'明示的に置いた足場は地面として扱う');
+ ok(L.canStep(4,2,0,-1),'梯子の横のマスから上の実在する足場へ登れる');
+});
 test('ランダム操作で壊れない(例外・不正な位置が出ない)',()=>{
  const K=['left','right','up','down','hit'];
  for(let n=0;n<40;n++){const g=new WC.Game(WC.Levels.sample);let done=false;g.onOver=g.onClear=()=>done=true;let cur={};
