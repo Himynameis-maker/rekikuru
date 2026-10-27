@@ -21,7 +21,7 @@ WC.Level=class{
  ladder(x,y){const o=this.get(x,y);return!!(o&&o.isLadder)}
  blocked(x,y){const o=this.get(x,y);return!!(o&&o.blocks)}
  // 立てるマスか。通行止めオブジェクト(ドラム缶)の真上も足場になる(bg=背景側の敵は無視)。
- standable(x,y,bg){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)||(!bg&&this.blocked(x,y+1))}
+ standable(x,y,bg){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)||(!bg&&this.blocked(x,y+1))||(!this.ladder(x,y)&&this.ladder(x,y+1))}
  // ドラム缶の上に立っているか。ドラム缶の天面は通常の床より少し低い。
  onDrum(x,y){return y<this.h-1&&!this.floor[y][x]&&!this.ladder(x,y)&&this.blocked(x,y+1)}
  // 梯子ではない普通の足場(床)のマスか
@@ -32,7 +32,11 @@ WC.Level=class{
   const nx=this.wrap(x+dx),ny=y+dy;
   if(ny<0||ny>=this.h)return false;
   if(!bg&&this.blocked(nx,ny))return false;
-  if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // 段差: ドラム缶の上から周りの足場へは上がれない(降りるのはOK)→囲まれると詰む
+  // 梯子の先端の一つ上のマスは、足場がなければ横移動できない。
+  if(dx&&!this.ladder(x,y)&&this.ladder(x,y+1)&&!this.ground(x,y)&&(!bg?!this.blocked(x,y+1):true))return false;
+  if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,y))return false; // ドラム缶の上から隣の足場へは上がれない
+  // 梯子の最上段から、その一つ上のマスへ登ることを許可する。
+  if(dy<0&&this.ladder(x,y)&&ny>=0&&!this.ladder(x,ny))return true;
   return dy?this.ladder(x,ny):true}
  dest(x,y,dx,dy,bg){ // 1歩+落下後のマス
   if(!this.canStep(x,y,dx,dy,bg))return null;
