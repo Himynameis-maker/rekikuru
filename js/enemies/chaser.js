@@ -33,6 +33,11 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(L.ladder(this.x,this.y+1)&&!L.ladder(this.x,this.y)){
    this._chaserAtLadderTip=true;
    if(this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   else if(this.y!==p.y&&p.x!==this.x){
+    // 梯子から足場へ出た時、プレイヤー側の高さへ行ける梯子が無ければプレイヤー方向へ歩き始める。
+    const dy=p.y<this.y?-1:1;
+    if(this.ladderAhead(g,dy)===null)this.dir=p.x>this.x?1:-1;
+   }
   }
   // 梯子のマスに到着したイベントで、同じ高さならプレイヤー側へ向き直る。
   if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
