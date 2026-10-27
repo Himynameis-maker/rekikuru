@@ -27,7 +27,12 @@ WC.Enemies['3']=class extends WC.Enemies['1']{
    });
    return null;
   }
-  if(this._foremanResume){this._foremanResume=false;return super.decide(g)}
+  if(this._foremanResume){
+   this._foremanResume=false;
+   // 停止明けの最初の一歩で必ず追跡条件を再評価する。同じ高さならプレイヤー側へ向く。
+   if(this.y===p.y&&p.x!==this.x){this.dir=p.x>this.x?1:-1;if(g.level.canStep(this.x,this.y,this.dir,0,this.bg))return[this.dir,0]}
+   return super.decide(g)
+  }
   if(this._stepsUntilPause<=0){
    this.busy=.4+Math.random()*.8;
    this._foremanPaused=true;
