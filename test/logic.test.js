@@ -96,6 +96,15 @@ test('梯子から足場へ出た追尾敵: プレイヤー側の高さへ行け
   ok(e.dir===1,'高さの違うプレイヤー方向(右)へ向く');
  }
 });
+test('ドラム缶上の敵: 足場へ上がれずぶつかったら反転する',()=>{
+ const g=mk(['          ','          ','===  ==  W','====O=====','W         ']);
+ for(const Enemy of [WC.Enemies['1'],WC.Enemies['2'],WC.Enemies['3'],WC.Enemies['4']]){
+  const e=new Enemy(4,2);put(e,4,2);e.dir=-1;
+  if(Enemy===WC.Enemies['2'])e.vertical=1;
+  const d=e.decide(g);
+  ok(e.dir===1&&d&&d[0]===1,'ドラム缶上で足場に阻まれたら反転して進む');
+ }
+});
 test('直進敵: 下りを優先し、下りた後は下り傾向を維持。下り梯子が無ければ上り傾向へ切り替える',()=>{
  let g=mk(['          ','  H       ','  H       ','  H       ','==========']);
  let e=new WC.Enemies['2'](2,1);g.enemies=[e];put(e,2,1);
