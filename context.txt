@@ -65,10 +65,10 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
   キャラが歩く段(床の段)と、その上の「空中の段」(梯子の途中)が交互に並ぶ。梯子の上下端は床の段にある。
 - **地面(`Level.floor[y][x]`)はオブジェクトとは別レイヤー**。オブジェクトが壊れても地面は残る。作られ方(`Level` コンストラクタ):
   - 空白以外の文字は地面を持つ('=' だけでなく壁・ドラム缶・鉄柱・爆弾・扉・P・敵の文字も)。
-  - 梯子(L/H)は **上下の端のマスだけ** 地面を持つ(上にも下にも梯子があるマスは持たない)。
+  - 梯子(L/H)は **縦につながった梯子列の上端・下端だけ** 地面を持つ(途中のマスは持たない)。上端の床線はセル上端、下端の床線はセル下端に描き、連結部には床線を描かない。
   - 鉄柱 I の **真上** にある O/W/w/V は自前の地面を持たない(鉄柱ごと宙に載っている)。
   - **左右端の列(x=0 と x=w-1)は全段が地面。消せない**(その文字が空白でも)。
-- `Level.standable(x,y,bg)` = 最下段 || 地面 || 梯子 || (bg以外で)真下が通行止めオブジェクト(ドラム缶の上に立てる)。
+- `Level.standable(x,y,bg)` = 最下段 || 地面 || 梯子 || (bg以外で)真下が通行止めオブジェクト(ドラム缶の上に立てる)。梯子列の上端・下端の地面は残るが、連結部には中間の足場を作らない。
   立てないマスにいるキャラは毎ステップ1マス落ちる(速い)。
 - 移動 `Level.canStep(x,y,dx,dy,bg)`:
   - 縦は移動先に梯子が必須。横は自由(端はループ)。
@@ -142,7 +142,6 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
   キャラの操作は `g.keys={right:true}` で再現し、`g.update(1/60)` を回す。止めたいマスの手前でキーを離すこと(到着の瞬間に次の一歩を決めるため)。
   テストでは `g.state='play'; g.timers=[]; g.enemies=[]` で準備待ちを飛ばす。壊すものが1つも無いステージは即クリア扱いになるので壁を1つ置く。
 - `npm run test:e2e` … `test/e2e.js`。playwright(+ chromium)が必要。2回目のプレイ・エディタの端・全消しを実ブラウザで確認。
-
 ################################################################
 # 第2部: ファイル一覧(第3部の掲載順)
 ################################################################
@@ -151,9 +150,9 @@ index.html  (40行)
 style.css  (32行)
 package.json  (11行)
 js/config.js  (22行)
-js/core/gfx.js  (15行)
+js/core/gfx.js  (21行)
 js/core/sound.js  (3行)
-js/core/level.js  (50行)
+js/core/level.js  (56行)
 js/core/actor.js  (27行)
 js/objects/object.js  (22行)
 js/objects/wall.js  (7行)
@@ -307,8 +306,14 @@ WC.Gfx.fns.ladder=(c,x,y,s,o)=>{c.fillStyle=o.needsBreak?'#ec6':'#89b';c.fillRec
 WC.Gfx.fns.door=(c,x,y,s,o)=>{c.fillStyle=o.isOpen?'#142':'#4a6';c.fillRect(x+4,y+2,s-8,s-4)};
 // 背景〜オブジェクトの描画(ゲームとエディタ共用)。梯子の上下端には足場を描く。
 WC.Gfx.terrain=(c,L,s)=>{
- for(let y=0;y<L.h;y++)for(let x=0;x<L.w;x++)
-  if(L.floor[y][x]||y==L.h-1||(L.ladder(x,y)&&!(L.ladder(x,y-1)&&L.ladder(x,y+1))))WC.Gfx.draw('floor',c,x*s,y*s,s);
+ for(let y=0;y<L.h;y++)for(let x=0;x<L.w;x++){
+  if(L.ladder(x,y)){
+   // 梯子の上端の床線はセル上端、下端の床線はセル下端に描く。
+   // 下端線を各セルの下に描くと、縦連結した梯子の途中に余計な足場ができる。
+   if(!L.ladder(x,y-1)){c.fillStyle='#2a6';c.fillRect(x*s,y*s,s,5)}
+   if(!L.ladder(x,y+1))WC.Gfx.draw('floor',c,x*s,y*s,s);
+  }else if(L.floor[y][x]||y==L.h-1)WC.Gfx.draw('floor',c,x*s,y*s,s);
+ }
  L.objs.forEach(o=>WC.Gfx.draw(o.kind,c,o.x*s,(o.fy??o.y)*s,s,o))};
 WC.Gfx.fns.iron=(c,x,y,s)=>{c.fillStyle='#778';c.fillRect(x+12,y,8,s)};
 
@@ -333,7 +338,9 @@ WC.Level=class{
    //  ・梯子は上下の端のマスだけ地面を持つ(途中のマスは持たない)
    //  ・鉄柱(I)の真上に載っているドラム缶・壁は、自前の地面を持たない(鉄柱ごと宙に浮いている)
    //  ・左右端の列は全段が足場(1マス幅)。消せない(文字が空白でも足場になる)
-   this.floor[y][x]=x==0||x==this.w-1||ch!=' '&&(lad(ch)?!(lad(at(x,y-1))&&lad(at(x,y+1))):!('OWwV'.includes(ch)&&at(x,y+1)=='I'))}});
+   // 梯子の上下端だけ床を持つ。縦に連結した梯子の途中には床を作らない。
+   // 床線の描画位置(上端/下端)は Gfx.terrain 側で分ける。
+   this.floor[y][x]=x==0||x==this.w-1||ch!=' '&&(lad(ch)?(!lad(at(x,y-1))||!lad(at(x,y+1))):!('OWwV'.includes(ch)&&at(x,y+1)=='I'))}});
  }
  get(x,y){return this.objs.get(x+','+y)}
  del(x,y){this.objs.delete(x+','+y)}
@@ -341,7 +348,7 @@ WC.Level=class{
  ladder(x,y){const o=this.get(x,y);return!!(o&&o.isLadder)}
  blocked(x,y){const o=this.get(x,y);return!!(o&&o.blocks)}
  // 立てるマスか。通行止めオブジェクト(ドラム缶)の真上も足場になる(bg=背景側の敵は無視)。
- standable(x,y,bg){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)||(!bg&&this.blocked(x,y+1))}
+ standable(x,y,bg){return y>=this.h-1||this.floor[y][x]||this.ladder(x,y)||(!bg&&this.blocked(x,y+1))||(!this.ladder(x,y)&&this.ladder(x,y+1))}
  // ドラム缶の上に立っているか。ドラム缶の天面は通常の床より少し低い。
  onDrum(x,y){return y<this.h-1&&!this.floor[y][x]&&!this.ladder(x,y)&&this.blocked(x,y+1)}
  // 梯子ではない普通の足場(床)のマスか
@@ -352,7 +359,11 @@ WC.Level=class{
   const nx=this.wrap(x+dx),ny=y+dy;
   if(ny<0||ny>=this.h)return false;
   if(!bg&&this.blocked(nx,ny))return false;
-  if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // 段差: ドラム缶の上から周りの足場へは上がれない(降りるのはOK)→囲まれると詰む
+  // 梯子の先端の一つ上のマスは、足場がなければ横移動できない。
+  if(dx&&!this.ladder(x,y)&&this.ladder(x,y+1)&&!this.ground(x,y)&&(!bg?!this.blocked(x,y+1):true))return false;
+  if(dx&&!bg&&this.onDrum(x,y)&&this.ground(nx,ny))return false; // ドラム缶の上から隣の足場へは上がれない
+  // 梯子の最上段から、その一つ上のマスへ登ることを許可する。
+  if(dy<0&&this.ladder(x,y)&&ny>=0&&!this.ladder(x,ny))return true;
   return dy?this.ladder(x,ny):true}
  dest(x,y,dx,dy,bg){ // 1歩+落下後のマス
   if(!this.canStep(x,y,dx,dy,bg))return null;
