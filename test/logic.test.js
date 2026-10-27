@@ -123,9 +123,9 @@ test('親方: ハンマーで完全破壊した時だけプレイヤーを異常
  const g=mk(['          ','          ','P W====W  ','==========']);
  const e=new WC.Enemies['3'](2,2);g.enemies=[e];put(g.player,2,2);
  e.decide(g);
- run(g,1);
+ run(g,.55);
  ok(g.player.abn,'親方が壁を完全破壊したらプレイヤーは異常落下する');
- run(g,2);
+ run(g,1);
  ok(!g.player.abn&&g.player.stun===0,'プレイヤーは着地後にスタンしない');
  const h=mk(['          ','          ','P W====W  ','==========']);
  const f=new WC.Enemies['3'](2,2);h.enemies=[f];put(h.player,0,2);
