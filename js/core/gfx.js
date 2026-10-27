@@ -9,9 +9,13 @@ WC.Gfx.fns.ladder=(c,x,y,s,o)=>{c.fillStyle=o.needsBreak?'#ec6':'#89b';c.fillRec
 WC.Gfx.fns.door=(c,x,y,s,o)=>{c.fillStyle=o.isOpen?'#142':'#4a6';c.fillRect(x+4,y+2,s-8,s-4)};
 // 背景〜オブジェクトの描画(ゲームとエディタ共用)。梯子の上下端には足場を描く。
 WC.Gfx.terrain=(c,L,s)=>{
- for(let y=0;y<L.h;y++)for(let x=0;x<L.w;x++)
-  // 梯子の床線は Level.floor が管理する。上下どちらかが梯子でないだけで床を描くと、
-  // 縦につながった梯子の上端にも余計な床線が描かれて連結が切れて見える。
-  if(L.floor[y][x]||y==L.h-1)WC.Gfx.draw('floor',c,x*s,y*s,s);
+ for(let y=0;y<L.h;y++)for(let x=0;x<L.w;x++){
+  if(L.ladder(x,y)){
+   // 梯子の上端の床線はセル上端、下端の床線はセル下端に描く。
+   // 下端線を各セルの下に描くと、縦連結した梯子の途中に余計な足場ができる。
+   if(!L.ladder(x,y-1)){c.fillStyle='#2a6';c.fillRect(x*s,y*s,s,5)}
+   if(!L.ladder(x,y+1))WC.Gfx.draw('floor',c,x*s,y*s,s);
+  }else if(L.floor[y][x]||y==L.h-1)WC.Gfx.draw('floor',c,x*s,y*s,s);
+ }
  L.objs.forEach(o=>WC.Gfx.draw(o.kind,c,o.x*s,(o.fy??o.y)*s,s,o))};
 WC.Gfx.fns.iron=(c,x,y,s)=>{c.fillStyle='#778';c.fillRect(x+12,y,8,s)};
