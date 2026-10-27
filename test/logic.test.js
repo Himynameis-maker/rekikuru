@@ -88,13 +88,26 @@ test('左右ループ: 連続して動く/またいで当たる/火の玉はル�
  const ch=new WC.Enemies['1'](9,2);g.player.rx=-.4;ch.rx=9;ok(g.near(g.player,ch)<.65,'端をまたいで接触判定');
  const fb=new WC.Fireball(0,2,1);fb.rx=-.3;g.player.rx=9;ok(g.near(fb,g.player)>.65,'火の玉はループしない');
 });
-test('梯子から足場へ出た追尾敵: プレイヤー側の高さへ行ける梯子がなければプレイヤー方向へ向く',()=>{
+test('追尾敵: 有効な梯子がない時はプレイヤー方向に関係なく現在の向きを維持する',()=>{
  for(const Enemy of [WC.Enemies['1'],WC.Enemies['3']]){
   const g=mk(['          ','  ======W ','  H       ','==========']);
   const e=new Enemy(2,1);g.enemies=[e];put(g.player,7,0);put(e,2,1);e.dir=-1;
   e.arrive(g);
-  ok(e.dir===1,'高さの違うプレイヤー方向(右)へ向く');
+  const d=e.decide(g);
+  ok(e.dir===-1,'有効な梯子がないのでプレイヤーが右にいても左向きを維持する');
+  ok(d&&d[0]===-1,'現在の向きに歩き続ける');
  }
+});
+test('追尾敵: 複数の有効な梯子がある時は敵自身に最も近い梯子を選ぶ',()=>{
+ const g=mk(['          ','          ','==========','          ']);
+ const e=new WC.Enemies['1'](5,2);put(e,5,2);put(g.player,9,0);
+ // 梯子探索の候補条件だけを固定し、距離の優先順位を独立して検証する。
+ e.helpfulLadder=(game,x,y,dy)=>x===3||x===8;
+ g.level.ladder=()=>false;
+ g.level.canStep=()=>true;
+ g.level.dest=(x,y,dx,dy)=>[x+dx,y];
+ const dx=e.ladderAhead(g,-1);
+ ok(dx===-2,'敵から2マスの左梯子を、3マス先の右梯子より優先する');
 });
 test('ドラム缶上の敵: 足場へ上がれずぶつかったら反転する',()=>{
  const g=mk(['          ','          ','====  == W','====O=====','W         ']);
