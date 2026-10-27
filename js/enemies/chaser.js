@@ -91,6 +91,9 @@ WC.Enemies['1']=class extends WC.Enemy{
    while(cx!==x){
     const nx=cx+dir;
     if(nx<0||nx>=L.w||!L.canStep(cx,this.y,dir,0,this.bg)){reachable=false;break}
+    // 横移動後に落下するマスは「歩いて到達できる同じ足場」の候補に含めない。
+    const next=L.dest(cx,this.y,dir,0,this.bg);
+    if(!next||next[0]!==nx||next[1]!==this.y){reachable=false;break}
     cx=nx;
    }
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
