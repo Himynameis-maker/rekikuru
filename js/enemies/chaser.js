@@ -10,7 +10,12 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(startsNormalFall)this._chaserNormalFalling=true;
   super.next(g);
  }
- // 到着イベントだけを処理する。プレイヤーと同じ高さになっただけでは向きを変えない。
+ // 向きの変更は、着地・梯子到着などの到着イベント内だけで行う。
+ // decide() は歩行中の向きを変更せず、次の移動先だけを返す。
+ turnTowardPlayer(g){
+  const p=g.player;
+  if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
+ }
  arrive(g){
   super.arrive(g);
   if(this.hidden||this.abn)return;
@@ -18,29 +23,24 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(this._chaserNormalFalling){
    this._chaserNormalFalling=false;
    if(this.y===p.y){
-    // 通常落下の着地先がプレイヤーと同じ高さなら、その着地イベントでプレイヤー側へ向き直る。
-    if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
+    // 通常落下の着地イベントで、同じ高さならプレイヤー側へ向き直る。
+    this.turnTowardPlayer(g);
    }else{
-    // 高さが違う場合は、有効な梯子があればそちらへ向きを合わせる。
-    const dy=p.y<this.y?-1:1,dx=this.ladderAhead(g,dy);
-    if(dx!==null&&dx!==0){
-     const dir=dx>0?1:-1;
-     if(L.canStep(this.x,this.y,dir,0,this.bg))this.dir=dir;
-    }
+    // 着地イベントでは向きを変えず、次の正規の判断タイミングまで現在の向きを保つ。
+    // 梯子の選択は decide() が行うが、梯子が後方でも歩行中に反転しない。
    }
   }
-  // 梯子の先端の一つ上のマスに到着した瞬間も、プレイヤーとの高さを再判定する。
+  // 梯子の先端の一つ上のマスに到着したイベント。
   if(L.ladder(this.x,this.y+1)&&!L.ladder(this.x,this.y)){
    this._chaserAtLadderTip=true;
-   if(this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
-   else if(this.y!==p.y&&p.x!==this.x){
-    // 梯子から足場へ出た時、プレイヤー側の高さへ行ける梯子が無ければプレイヤー方向へ歩き始める。
-    const dy=p.y<this.y?-1:1;
-    if(this.ladderAhead(g,dy)===null)this.dir=p.x>this.x?1:-1;
+   if(this.y===p.y)this.turnTowardPlayer(g);
+   else if(p.x!==this.x){
+    // 高さが違う場合、別の梯子がないことだけを理由に方向転換しない。
+    // 後方の梯子を目指す場合も、障害物など正規の反転地点まで現在の向きを保つ。
    }
   }
   // 梯子のマスに到着したイベントで、同じ高さならプレイヤー側へ向き直る。
-  if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+  if(L.ladder(this.x,this.y)&&this.y===p.y)this.turnTowardPlayer(g);
  }
  // この敵自身が異常落下を始めた場合に限り、スタン復帰時の再判定を有効にする。
  startAbn(){
@@ -53,7 +53,7 @@ WC.Enemies['1']=class extends WC.Enemy{
   const p=g.player;
   if(wasStunned&&this.stun<=0&&this._chaserFallStun){
    this._chaserFallStun=false;
-   if(!this.abn&&!this.hidden&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   if(!this.abn&&!this.hidden&&this.y===p.y)this.turnTowardPlayer(g);
   }
  }
  // 障害物が実際に進行方向の隣マスを塞いでいる場合だけ反転する。
