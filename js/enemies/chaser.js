@@ -5,10 +5,16 @@ WC.Enemies['1']=class extends WC.Enemy{
  // 異常落下のスタンが終わった瞬間に方向を再判定する。
  update(dt,g){
   const wasStunned=this.stun>0;
+  const oldY=this.y;
   super.update(dt,g);
-  if(wasStunned&&this.stun<=0&&!this.abn&&!this.hidden){
-   const p=g.player;
-   if(this.y===p.y)this.dir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
+  const p=g.player;
+  // 梯子移動でプレイヤーと同じ高さに到達した瞬間だけ、プレイヤー側へ向き直る。
+  if(this.y!==oldY&&this.y===p.y&&!this.abn&&!this.hidden&&p.x!==this.x){
+   this.dir=p.x>this.x?1:-1;
+  }
+  // 異常落下のスタン復帰時に限って方向を再判定する。
+  if(wasStunned&&this.stun<=0&&!this.abn&&!this.hidden&&this.y===p.y&&p.x!==this.x){
+   this.dir=p.x>this.x?1:-1;
   }
  }
  // プレイヤーの高さに近づける上下移動ができる梯子を探す。
@@ -33,7 +39,9 @@ WC.Enemies['1']=class extends WC.Enemy{
   const L=g.level,p=g.player;
   // 同じ高さなら、梯子よりもプレイヤーへ向かう横移動を優先する。
   if(this.y===p.y){
-   if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   // 同じ高さという理由だけでは毎フレーム方向転換しない。
+   // 梯子グリッドに完全に重なった場合のみ、指定イベントとしてプレイヤー側へ向き直る。
+   if(L.ladder(this.x,this.y)&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
    if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.dir*=-1;
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
