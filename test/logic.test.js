@@ -94,6 +94,23 @@ test('火の玉: 床の多い段すべてに出る/当たるとミス',()=>{
  put(g3.player,10,8);g3.enemies.push(new WC.Fireball(0,8,1));for(let i=0;i<360&&g3.state=='play';i++)g3.update(1/60);
  ok(g3.state=='dead','同じ段のプレイヤーに当たるとミス');
 });
+test('爆弾: 横方向は破壊成立時だけ0.2秒間隔で連鎖し、鉄も消える',()=>{
+ const g=mk(['          ','          ','PBWIW    W','==========','          ']);
+ const b=g.level.get(1,2),iron=g.level.get(3,2);
+ ok(!!b&&!!iron,'爆弾と鉄柱が配置されている');
+ const clearBefore=objs(g).filter(o=>o.needsBreak).length;
+ b.light(0,false);b.update(1,g);
+ ok(!g.level.get(2,2),'最初の壁は起爆時に破壊される');
+ ok(g.level.get(3,2)===iron&&!!g.level.get(4,2),'隣の鉄と壁は間隔待ちで残る');
+ ok(g.timers.length===1,'次の破壊までタイマーを一つ予約する');
+ g.timers.shift().fn();
+ ok(!g.level.get(3,2)&&!!g.level.get(4,2),'次の間隔で鉄柱が消え、さらに隣の壁は待つ');
+ ok(g.timers.length===1,'鉄の破壊後も次の間隔を予約する');
+ g.timers.shift().fn();
+ ok(!g.level.get(4,2),'さらに0.2秒後に隣の壁も破壊される');
+ ok(!iron.needsBreak,'鉄柱は破壊可能だがクリア条件の数には含めない');
+ ok(objs(g).filter(o=>o.needsBreak).length===clearBefore-3,'破壊された壁だけクリア対象数が減る');
+});
 test('ランダム操作で壊れない(例外・不正な位置が出ない)',()=>{
  const K=['left','right','up','down','hit'];
  for(let n=0;n<40;n++){const g=new WC.Game(WC.Levels.sample);let done=false;g.onOver=g.onClear=()=>done=true;let cur={};
