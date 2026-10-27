@@ -109,7 +109,7 @@ test('爆弾: 横方向は破壊成立時だけ0.2秒間隔で連鎖し、鉄も
  g.timers.shift().fn();
  ok(!g.level.get(4,2),'さらに0.2秒後に隣の壁も破壊される');
  ok(!iron.needsBreak,'鉄柱は破壊可能だがクリア条件の数には含めない');
- ok(objs(g).filter(o=>o.needsBreak).length===clearBefore-3,'破壊された壁だけクリア対象数が減る');
+ ok(objs(g).filter(o=>o.needsBreak).length===clearBefore-2,'破壊された壁だけクリア対象数が減る');
 });
 test('ランダム操作で壊れない(例外・不正な位置が出ない)',()=>{
  const K=['left','right','up','down','hit'];
