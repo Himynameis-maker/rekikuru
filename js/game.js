@@ -8,8 +8,12 @@ WC.Game=class{
  later(t,fn){this.timers.push({t,fn})}
  actors(){return[this.player,...this.enemies.filter(e=>!e.hidden&&!e.dead)]}
  hit(x,y,by){WC.Sound.play('hit');
-  const o=this.level.get(x,y);if(o&&o.onHit)o.onHit(this,by);
-  this.enemies.forEach(e=>{if(!e.hidden&&e.y==y&&e.x==x&&e.onHammer)e.onHammer(this)})}
+  const o=this.level.get(x,y);
+  if(o&&o.onHit)o.onHit(this,by);
+  // 親方は、爆弾以外の破壊対象がこの一振りで完全に消えた場合だけ異常落下する。
+  const destroyed=!!o&&o.kind!=='bomb'&&(o.needsBreak||o.destructible||o.isLadder)&&this.level.get(x,y)!==o;
+  if(destroyed)this.enemies.forEach(e=>{if(!e.hidden&&e.y==y&&e.x==x&&e.onHammer)e.onHammer(this)});
+ }
  near(a,b){let dx=Math.abs(a.rx-b.rx);if(!a.nowrap&&!b.nowrap)dx=Math.min(dx,this.level.w-dx);return Math.hypot(dx,a.ry-b.ry)} // 左右ループをまたいだ距離
  killPlayer(){if(this.state!='play')return;this.state='dead';WC.Sound.play('die');this.lives--;
   this.later(1.2,()=>{if(this.lives>0)this.load();else{this.state='over';this.later(1.5,()=>this.onOver&&this.onOver())}})}
