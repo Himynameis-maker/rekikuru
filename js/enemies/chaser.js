@@ -20,14 +20,24 @@ WC.Enemies['1']=class extends WC.Enemy{
   // 梯子のマスへの到着イベントで、同じ高さならプレイヤー側へ向き直る。
   if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
  }
- // 異常落下のスタンから復帰した瞬間だけ方向を再判定する。
+ // この敵自身が異常落下を始めた場合に限り、スタン復帰時の再判定を有効にする。
+ startAbn(){
+  if(!this.abn&&!this.hidden)this._chaserFallStun=true;
+  super.startAbn();
+ }
  update(dt,g){
   const wasStunned=this.stun>0;
   super.update(dt,g);
   const p=g.player;
-  if(wasStunned&&this.stun<=0&&!this.abn&&!this.hidden&&this.y===p.y&&p.x!==this.x){
-   this.dir=p.x>this.x?1:-1;
+  if(wasStunned&&this.stun<=0&&this._chaserFallStun){
+   this._chaserFallStun=false;
+   if(!this.abn&&!this.hidden&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
   }
+ }
+ // 障害物が実際に進行方向の隣マスを塞いでいる場合だけ反転する。
+ reverseIfObstacle(g){
+  const L=g.level,nx=L.wrap(this.x+this.dir);
+  if(!this.bg&&L.blocked(nx,this.y))this.dir*=-1;
  }
  helpfulLadder(g,x,y,dy){
   const L=g.level;
@@ -48,7 +58,7 @@ WC.Enemies['1']=class extends WC.Enemy{
   const L=g.level,p=g.player;
   if(this.y===p.y){
    // 高さが同じという理由だけでは方向転換しない。梯子到着時の判定は arrive() が担当。
-   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.dir*=-1;
+   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
   const dy=p.y<this.y?-1:1;
@@ -57,12 +67,12 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(dx!==null&&dx!==0){
    const dir=dx>0?1:-1;
    if(L.canStep(this.x,this.y,dir,0,this.bg)){this.dir=dir;return[dir,0]}
-   // 梯子へ向かう方向が障害物で塞がれている場合は、その反対へ向き直る。
-   this.dir=-dir;
+   // 実際に障害物が塞いでいる場合だけ反転する。段差などの制限では向きを保つ。
+   if(!this.bg&&L.blocked(L.wrap(this.x+dir),this.y))this.dir=-dir;
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
   // 有効な梯子が見つからない場合は直近の水平方向を維持する。
-  if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.dir*=-1;
+  if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
   return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
  }
 };
