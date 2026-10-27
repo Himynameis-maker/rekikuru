@@ -87,7 +87,7 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
 ## 5. オブジェクトと敵の挙動
 - **壁**: 背景オブジェクト(通行を妨げない)。立っているマスで叩くと HP-1。爆風でも -1。
 - **梯子 L**: 叩く/爆風で壊れ、上下の L に連鎖して壊れる(`breakInterval`)。掴まっていた敵は異常落下、プレイヤーはその場から真下へ落ちる。H は壊れない。
-- **ドラム缶 O**: 常に通行止めの1マス障害物。上から落ちてきたキャラはめり込まず上に立つ。
+- **ドラム缶 O**: 常に通行止めの1マス障害物。上から落ちてきたキャラはめり込まず上に立つ。親方(3)にも同じ衝突判定を適用し、横からのすり抜けも下への突き抜けもできない。
 - **鉄柱 I**: 背景。爆風では破壊可能(クリア条件のカウント対象ではない)。ハンマーで叩くと、真上にドラム缶/壁が載っている場合は載っていた物を `fallDelay` 秒後に落とし、鉄柱自体は壁と同様に消える(地面は残る)。載っていた物がない場合も鉄柱自体は消える。載っていた物が `fallDelay` 秒後に
   「鉄柱が立っていた地面」まで落ちてそのマスに残る(1つ下の段ではない)。
   落ちるドラム缶: 同じ列のプレイヤーは死亡、敵は撃破。落ちる壁: 無害・落下中は壊せない。着地先に別オブジェクトがあれば割れて消える。
@@ -658,7 +658,7 @@ WC.Enemies['2']=class extends WC.Enemy{
 // 3: 背景側の敵。チェイサーと同じ追跡判定を使い、時々移動開始前に短く休む。
 // ハンマーは爆弾以外の梯子・壁・鉄柱に一撃分だけ作用し、完全破壊時だけプレイヤーを異常落下させる。
 WC.Enemies['3']=class extends WC.Enemies['1']{
- constructor(x,y){super(x,y,'foreman');this.bg=true;this._stepsUntilPause=2+Math.random()*3;this._foremanPaused=false;this._foremanResume=false}
+ constructor(x,y){super(x,y,'foreman');this.bg=false;this._stepsUntilPause=2+Math.random()*3;this._foremanPaused=false;this._foremanResume=false}
  onHammer(){this.startAbn()}
  update(dt,g){
   const wasBusy=this.busy,wasAbn=this.abn;
@@ -997,6 +997,16 @@ test('梯子: 自動足場を作らず、壊しても既存の地面だけ残る
  objs(g).filter(o=>o.isLadder)[0].brk(g);run(g,1);
  ok(objs(g).filter(o=>o.isLadder).length==0,'連鎖して全部壊れる');
  ok(g.level.floor[1][5]&&g.level.floor[4][5],'明示的に置いた上下の足場は残る');
+});
+test('親方: ドラム缶をすり抜けず、上に乗れる',()=>{
+ let g=mk(['          ','          ','  3O====W ','==========']);
+ const e=new WC.Enemies['3'](2,2);g.enemies=[e];put(g.player,0,2);
+ e.dir=1;run(g,1);
+ ok(e.x!==3,'親方は横からドラム缶を通り抜けない');
+ g=mk(['          ','          ','   O====W ','==========','          ']);
+ const f=new WC.Enemies['3'](3,0);g.enemies=[f];put(g.player,0,3);
+ run(g,1);
+ ok(f.y===1&&f.x===3,'親方は落下してドラム缶の一つ上に乗る');
 });
 test('ドラム缶: 通行止め/めり込まない/異常落下でも止まる',()=>{
  let g=mk(['         ','         ','P==O====W','         ','=========','         ']);
