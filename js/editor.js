@@ -4,7 +4,7 @@ WC.TOOLS=[
  {ch:'=',k:'floor',n:'床'},{ch:'W',k:'wall',s:{hp:1},n:'壁1'},{ch:'w',k:'wall',s:{hp:2},n:'壁2'},{ch:'V',k:'wall',s:{hp:3},n:'壁3'},
  {ch:'L',k:'ladder',s:{needsBreak:true},n:'梯子'},{ch:'H',k:'ladder',s:{},n:'固梯子'},
  {ch:'O',k:'drum',n:'ドラム缶'},{ch:'I',k:'iron',n:'鉄柱'},{ch:'B',k:'bomb',n:'爆弾'},{ch:'D',k:'door',s:{},n:'扉'},
- {ch:'P',k:'player',n:'プレイヤー'},{ch:'1',k:'chaser',n:'追尾'},{ch:'2',k:'runner',n:'直進↓優先'},{ch:'←',k:'runner',n:'直進←'},{ch:'→',k:'runner',n:'直進→'},{ch:'↑',k:'runner',n:'直進↑優先'},{ch:'↓',k:'runner',n:'直進↓優先'},{ch:'3',k:'foreman',n:'背景敵'},{ch:'4',k:'fastchaser',n:'高速'},
+ {ch:'P',k:'player',n:'プレイヤー'},{ch:'1',k:'chaser',n:'追尾'},{ch:'2',k:'runner',n:'直進'},{ch:'←',k:'runner',n:'直進←'},{ch:'→',k:'runner',n:'直進→'},{ch:'3',k:'foreman',n:'背景敵'},{ch:'4',k:'fastchaser',n:'高速'},
  {ch:' ',k:null,n:'消す'}];
 WC.Editor={
  grid:[],tool:'=',
