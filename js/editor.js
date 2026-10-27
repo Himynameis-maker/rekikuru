@@ -1,13 +1,14 @@
 // マリメ風エディタ。パレットから選んでマップをタップ/ドラッグで配置。
-WC.SPR={P:'player','1':'chaser','2':'runner','←':'runner','→':'runner','↑':'runner','↓':'runner','3':'foreman','4':'fastchaser'};
+WC.SPR={P:'player','1':'chaser','2':'runner','3':'foreman','4':'fastchaser'};
 WC.TOOLS=[
  {ch:'=',k:'floor',n:'床'},{ch:'W',k:'wall',s:{hp:1},n:'壁1'},{ch:'w',k:'wall',s:{hp:2},n:'壁2'},{ch:'V',k:'wall',s:{hp:3},n:'壁3'},
  {ch:'L',k:'ladder',s:{needsBreak:true},n:'梯子'},{ch:'H',k:'ladder',s:{},n:'固梯子'},
  {ch:'O',k:'drum',n:'ドラム缶'},{ch:'I',k:'iron',n:'鉄柱'},{ch:'B',k:'bomb',n:'爆弾'},{ch:'D',k:'door',s:{},n:'扉'},
- {ch:'P',k:'player',n:'プレイヤー'},{ch:'1',k:'chaser',n:'追尾'},{ch:'2',k:'runner',n:'直進'},{ch:'←',k:'runner',n:'直進←'},{ch:'→',k:'runner',n:'直進→'},{ch:'3',k:'foreman',n:'背景敵'},{ch:'4',k:'fastchaser',n:'高速'},
+ {ch:'P',k:'player',n:'プレイヤー'},{ch:'1',k:'chaser',n:'追尾'},{ch:'2',k:'runner',n:'直進'},{ch:'3',k:'foreman',n:'背景敵'},{ch:'4',k:'fastchaser',n:'高速'},
  {ch:' ',k:null,n:'消す'}];
 WC.Editor={
- grid:[],tool:'=',
+ grid:[],tool:'=',runnerDir:1,
+ setRunnerDir(dir){this.runnerDir=dir<0?-1:1;document.querySelectorAll('[data-runner-dir]').forEach(b=>b.classList.toggle('sel',+b.dataset.runnerDir===this.runnerDir))},
  load(t){const rows=t.replace(/\r/g,'').split('\n').filter(r=>r.length),w=Math.max(...rows.map(r=>r.length));this.grid=rows.map(r=>r.padEnd(w,' ').split(''))},
  text(){return this.grid.map(r=>r.join('')).join('\n')},
  resize(w,h){const g=[];for(let y=0;y<h;y++){g.push([]);for(let x=0;x<w;x++)g[y].push((this.grid[y]||[])[x]||' ')}this.grid=g},
