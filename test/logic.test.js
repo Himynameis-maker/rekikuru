@@ -42,6 +42,16 @@ test('梯子: 自動足場を作らず、壊しても既存の地面だけ残る
  ok(objs(g).filter(o=>o.isLadder).length==0,'連鎖して全部壊れる');
  ok(g.level.floor[1][5]&&g.level.floor[4][5],'明示的に置いた上下の足場は残る');
 });
+test('親方: ドラム缶をすり抜けず、上に乗れる',()=>{
+ let g=mk(['          ','          ','  3O====W ','==========']);
+ const e=new WC.Enemies['3'](2,2);g.enemies=[e];put(g.player,0,2);
+ e.dir=1;run(g,1);
+ ok(e.x!==3,'親方は横からドラム缶を通り抜けない');
+ g=mk(['          ','          ','   O====W ','==========','          ']);
+ const f=new WC.Enemies['3'](3,0);g.enemies=[f];put(g.player,0,3);
+ run(g,1);
+ ok(f.y===1&&f.x===3,'親方は落下してドラム缶の一つ上に乗る');
+});
 test('ドラム缶: 通行止め/めり込まない/異常落下でも止まる',()=>{
  let g=mk(['         ','         ','P==O====W','         ','=========','         ']);
  run(g,2,{right:true});ok(g.player.x==2,'横から入れない');
