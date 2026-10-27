@@ -16,7 +16,8 @@
   cv.width=G.level.w*WC.CONFIG.tile;cv.height=G.level.h*WC.CONFIG.tile;setMode('play')}
  function sizes(){$('cw').value=E.grid[0].length;$('ch').value=E.grid.length}
  const sheet=$('sheet'),open=s=>{sheet.dataset.s=s;sheet.hidden=false;if(s=='code')$('lv').value=E.text()};
- E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));\n document.querySelectorAll('[data-runner-dir]').forEach(b=>b.onclick=()=>E.setRunnerDir(+b.dataset.runnerDir));E.setRunnerDir(E.runnerDir);
+ E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));
+ document.querySelectorAll('[data-runner-dir]').forEach(b=>b.onclick=()=>E.setRunnerDir(+b.dataset.runnerDir));E.setRunnerDir(E.runnerDir);
  $('bPlay').onclick=()=>play(E.text(),false);
  $('bEdit').onclick=()=>setMode('edit');
  $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
