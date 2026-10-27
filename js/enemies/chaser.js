@@ -91,7 +91,9 @@ WC.Enemies['1']=class extends WC.Enemy{
   }
   if(!candidates.length)return null;
   const towardPlayer=p.x===this.x?this.dir:(p.x>this.x?1:-1);
-  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===towardPlayer?-1:b.dir===towardPlayer?1:0));
+  // 着地後に高さを縮める梯子を複数見つけた場合、敵に近い梯子ではなく、
+  // プレイヤーに近づける側の梯子を優先する。同点なら敵から近い方を選ぶ。
+  candidates.sort((a,b)=>Math.abs(a.x-p.x)-Math.abs(b.x-p.x)||a.distance-b.distance||(a.dir===towardPlayer?-1:b.dir===towardPlayer?1:0));
   return candidates[0].x-this.x;
  }
  decide(g){
