@@ -1,7 +1,7 @@
 // 3: 背景側の敵。チェイサーと同じ追跡判定を使い、時々移動開始前に短く休む。
 // ハンマーは爆弾以外の梯子・壁・鉄柱に一撃分だけ作用し、完全破壊時だけプレイヤーを異常落下させる。
 WC.Enemies['3']=class extends WC.Enemies['1']{
- constructor(x,y){super(x,y,'foreman');this.bg=true;this._stepsUntilPause=2+Math.random()*3;this._foremanPaused=false;this._foremanResume=false}
+ constructor(x,y){super(x,y,'foreman');this.bg=false;this._stepsUntilPause=2+Math.random()*3;this._foremanPaused=false;this._foremanResume=false}
  onHammer(){this.startAbn()}
  update(dt,g){
   const wasBusy=this.busy,wasAbn=this.abn;
