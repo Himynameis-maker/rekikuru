@@ -35,12 +35,12 @@ test('鉄柱の上の壁: 落ちて残る/無害/壊せる',()=>{
  ok(w&&w.y==2&&w.st==3,'壁は(3,2)に着地');ok(g.state=='play','落ちる壁は無害');ok(!g.level.blocked(3,2),'壁は通行を妨げない');
  goTo(g,3);hit(g);ok(!objs(g).find(o=>o.kind=='wall'&&o.x==3),'着地した壁は壊せる');
 });
-test('梯子: 壊しても上下端の地面が残る',()=>{
- const g=mk(['         ','  ===L===','     L   ','     L   ','  ===L===','         ','W        ']);
- ok(g.level.floor[1][5]&&g.level.floor[4][5]&&!g.level.floor[2][5],'端だけ地面を持つ');
+test('梯子: 自動足場を作らず、壊しても既存の地面だけ残る',()=>{
+ const g=mk(['         ','  ====== ','     L   ','     L   ','  ====== ','         ','W        ']);
+ ok(!g.level.floor[2][5]&&!g.level.floor[3][5],'梯子マス自体には自動足場を作らない');
  objs(g).filter(o=>o.isLadder)[0].brk(g);run(g,1);
  ok(objs(g).filter(o=>o.isLadder).length==0,'連鎖して全部壊れる');
- ok(g.level.standable(5,1)&&g.level.standable(5,4),'壊れた後も端に立てる');
+ ok(g.level.floor[1][5]&&g.level.floor[4][5],'明示的に置いた上下の足場は残る');
 });
 test('ドラム缶: 通行止め/めり込まない/異常落下でも止まる',()=>{
  let g=mk(['         ','         ','P==O====W','         ','=========','         ']);
@@ -112,7 +112,7 @@ test('爆弾: 横方向は破壊成立時だけ0.2秒間隔で連鎖し、鉄も
  ok(objs(g).filter(o=>o.needsBreak).length===clearBefore-2,'破壊された壁だけクリア対象数が減る');
 });
 test('梯子の横から一段上の実在する足場へ移動でき、梯子先端に自動足場を作らない',()=>{
- const game=mk(['          ','   H=     ','   H      ','   H      ','=========='].join('\n'));
+ const game=mk(['          ','   H=     ','   H      ','   H      ','==========']);
  const L=game.level;
  ok(!L.floor[1][3],'梯子の上端に自動足場を作らない');
  ok(L.ground(4,1),'明示的に置いた足場は地面として扱う');
