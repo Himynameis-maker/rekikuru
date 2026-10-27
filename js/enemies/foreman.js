@@ -29,8 +29,7 @@ WC.Enemies['3']=class extends WC.Enemies['1']{
   }
   if(this._foremanResume){
    this._foremanResume=false;
-   // 停止明けの最初の一歩で必ず追跡条件を再評価する。同じ高さならプレイヤー側へ向く。
-   if(this.y===p.y&&p.x!==this.x){this.dir=p.x>this.x?1:-1;if(g.level.canStep(this.x,this.y,this.dir,0,this.bg))return[this.dir,0]}
+   // 休止終了は追跡判定のトリガーではない。現在の向きのまま通常移動へ戻る。
    return super.decide(g)
   }
   if(this._stepsUntilPause<=0){
