@@ -71,7 +71,17 @@ WC.Enemies['1']=class extends WC.Enemy{
  }
  ladderAhead(g,dy){
   const L=g.level,p=g.player;
-  if(this.helpfulLadder(g,this.x,this.y,dy))return 0;
+  // 現在地の梯子・先端上なら、その場で上下移動できる。
+  if((L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)))&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
+  // 梯子の途中の横から上段へ登れる場合は、梯子の位置を返してそちらへ向かう。
+  // helpfulLadder() は梯子上の候補マスを探すため、現在地からの横隣の梯子はここで別に扱う。
+  if(dy<0&&!L.ladder(this.x,this.y)&&!L.ladder(this.x,this.y+1)&&L.canStep(this.x,this.y,0,dy,this.bg)){
+   const sides=[-1,1].filter(d=>L.ladder(L.wrap(this.x+d),this.y));
+   if(sides.length){
+    const preferred=p.x===this.x?this.dir:(p.x>this.x?1:-1);
+    return sides.includes(preferred)?preferred:sides[0];
+   }
+  }
   const dir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
   // 現在の水平列だけをプレイヤー側へ検索し、左右端を越えて探さない。
   for(let x=this.x+dir;x>=0&&x<L.w;x+=dir){
