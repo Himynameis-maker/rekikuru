@@ -120,9 +120,11 @@ WC.Enemies['1']=class extends WC.Enemy{
   const dx=this.ladderAhead(g,dy);
   if(dx!==null&&dx!==0){
    const dir=dx>0?1:-1;
-   if(L.canStep(this.x,this.y,dir,0,this.bg)){this.dir=dir;return[dir,0]}
-   // 実際に障害物が塞いでいる場合だけ反転する。段差などの制限では向きを保つ。
-   if(!this.bg&&L.blocked(L.wrap(this.x+dir),this.y))this.dir=-dir;
+   // 高さが変わっただけでは歩行中に反転しない。
+   // 選んだ梯子が現在の進行方向にある場合だけ、そのまま向かって進む。
+   // 梯子が後方なら現在の向きを維持し、障害物など正規の反転地点で向きを変える。
+   if(dir===this.dir&&L.canStep(this.x,this.y,dir,0,this.bg))return[dir,0];
+   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
    return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
   }
   // 有効な梯子が見つからない場合は直近の水平方向を維持する。
