@@ -13,7 +13,7 @@ WC.Level=class{
    //  ・梯子は上下の端のマスだけ地面を持つ(途中のマスは持たない)
    //  ・鉄柱(I)の真上に載っているドラム缶・壁は、自前の地面を持たない(鉄柱ごと宙に浮いている)
    //  ・左右端の列は全段が足場(1マス幅)。消せない(文字が空白でも足場になる)
-   this.floor[y][x]=x==0||x==this.w-1||ch!=' '&&(lad(ch)?!(lad(at(x,y-1))&&lad(at(x,y+1))):!('OWwV'.includes(ch)&&at(x,y+1)=='I'))}});
+   this.floor[y][x]=x==0||x==this.w-1||ch!=' '&&(lad(ch)?!lad(at(x,y+1)):!('OWwV'.includes(ch)&&at(x,y+1)=='I'))}});
  }
  get(x,y){return this.objs.get(x+','+y)}
  del(x,y){this.objs.delete(x+','+y)}
