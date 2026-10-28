@@ -7,7 +7,7 @@
 5. 仕様を変えたら docs/SPEC.md も更新し、ユーザーに「npm run context で context.txt を作り直してね」と伝える。
 (ユーザー側: プロジェクト直下で `npm run context` を実行すると、このファイルが最新のソースから再生成されます)
 
-生成: 2026-10-27 14:20 JST / ファイル 32 個
+生成: 2026-10-28 17:13 JST / ファイル 32 個
 
 ################################################################
 # 第1部: 仕様書 (docs/SPEC.md)
@@ -75,6 +75,7 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
   - bg=false のキャラは `blocks` なオブジェクト(ドラム缶)に入れない。bg=true(裏側の敵=foreman)は無視。
   - **段差**: ドラム缶の上(`onDrum`)にいると、横の「普通の床のマス(`ground`=地面があり梯子ではない)」へは上がれない。
     降りる(空中へ出て落ちる)のは可。梯子マスへは移れる。
+- **追尾敵の梯子選択**: チェイサー・高速追尾・親方は、プレイヤーと高さが異なる時、上下距離を1マス以上縮められ、歩いて到達できる範囲の梯子を探す。複数ある場合は敵自身から最も近い梯子を選ぶ。同距離ならドラム缶やプレイヤーの位置に関係なく左側の梯子を優先する。有効な梯子がなければプレイヤーの方向に関係なく現在の水平移動方向を維持する。現在位置の梯子で上下に近づける場合はそこを使い続ける。
 - **左右ループ**: `tx` は折り返した後のマス、`rx` は端の外(-1〜w)まで連続して動く(`Actor.sync`)。
   描画は `Actor.draw` が反対側にも半身を描く(火の玉は `nowrap` でループしない)。キャラ間の距離は `Game.near` が折り返しを考慮。
 - キャラの `x,y`=いるマス(移動中は出発マス、到着で更新)、`rx,ry`=描画/当たり用の連続座標、`t`=移動の進行 0→1。
@@ -97,7 +98,9 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
   上下左右の隣接物に通常の爆風を適用する。横方向は、隣の破壊可能な物が爆風一回分で消えた場合、その隣の破壊可能な物へ連鎖し、破壊ごとに `0.2` 秒待つ。消えなかった場合や破壊不能物に当たった場合は連鎖を止める。壁・L梯子・鉄柱は破壊可能。扉を開け、隣の爆弾に連鎖(`chainDelay`)。鉄柱はクリア条件のカウント対象ではない。
 - **扉 D**: 叩くと `openTime` 秒開く。開いた扉に着いた敵(noDoor でない)は隠れる。全敵が隠れると強制的に扉が開き、敵が出てくる(`checkAllHidden`/`onExit`)。
 - **異常落下(`startAbn`)**: 床を無視して最下段まで速く落ちる(ドラム缶の上で止まる)→通常キャラは着地後 `fall.stun` 秒気絶し、速度 `fall.boost`×lv アップ(lv最大2)。ただしプレイヤーと親方3は着地後のスタンなし。プレイヤーは落下中ハンマー不可。
-- **追尾 1/4**: 1は経路探索をせず、梯子と直近の移動方向で判断。通常落下の着地時にプレイヤーと同じ高さなら、着地イベントでプレイヤー側へ向き直って横移動する。4は高速。**直進 2**: プレイヤー無視で一方向、梯子があれば1マス上り次は横へ、障害物で反転。**親方 3** は追尾 1 の挙動を継承するため、通常落下で同じ高さに着地したときもプレイヤー側へ向く。
+- **直進 2**: 初期状態では上下の傾向を持たず、初めて梯子を実際に移動した方向で傾向が決まる。両方向に梯子がある場合は初回だけ下りを選ぶが、これは未確定状態での選択順であり、梯子移動後に初めて傾向が確定する。初期の横方向は、エディタの「直進敵の開始方向」でステージ単位に右または左へ指定し、全ての直進敵に適用する。個々の敵を矢印付き文字で配置する方式ではない。上下の傾向は梯子を選ぶ方向の判断に使うが、縦移動は一段だけ。縦移動の直後は、横に進めるなら梯子より横移動を優先する。横へ進めない場合に限り、再び梯子を選ぶ。傾向方向へ進めず逆方向の梯子しか使えない場合はそちらへ進んで傾向も切り替える。梯子が使えない場所では水平移動し、壁やドラム缶上の段差で進めない場合は反転する。
+- **追尾 1/4**: 1は経路探索をせず、着地・梯子への到着・異常落下後のスタン終了などの到着イベントで再判定する。同じ高さならプレイヤー側へ向く。高さが違う場合は敵自身から最も近い有効な梯子を選び、有効な梯子がなければ現在の水平移動方向を維持する。4は高速。**直進 2**: プレイヤー無視で移動。初期の横方向はエディタのステージ設定で右または左に一括指定できる。下り傾向では下り梯子を選ぶが、縦移動は一段だけで、直後は横に進めるなら横へ進む。横へ進めない場合に限って次の梯子を選ぶ。下り梯子が使えず上った場合は上り傾向に切り替わる。梯子が無い場所では水平移動し、壁またはドラム缶上から普通の足場へ進めない場合は反転する。**親方 3** は追尾 1 の挙動を継承するため、通常落下で同じ高さに着地したときもプレイヤー側へ向く。
+- **追尾 1/4/3 の梯子マスでの停止**: 梯子マス(梯子の上、または梯子先端の一つ上)は向きの再判定トリガー。再判定で決まった向きが障害物(ドラム缶など)に塞がれ、反転した向きで再判定してもまた元の向きになる場合(例: 左にドラム缶があるので右→右隣もドラム缶で反転→また右…)は、判定と反転が際限なく入れ替わる(実質ブルブル)ので、その場で止まる。毎フレーム判定し直すので、プレイヤーの移動などで結果が変われば自然に動き出す。梯子マス以外では従来どおり反転して歩く。
 - **親方 3(裏側の敵)**: チェイサー1と同じ追尾判定・梯子判定を使い、移動の合間に0.4〜1.2秒停止する。停止後の移動開始時に高さ・梯子を再判定する。同じマスに来ると `windup` 秒後にハンマーを振る。爆弾以外の梯子・壁・鉄柱を通常の一振り分だけ処理し、対象が完全に消えた場合だけプレイヤーを異常落下させる。**プレイヤーは異常落下するだけでミスにはならない**。プレイヤーがハンマーで対象を完全破壊した場合だけ親方も異常落下する。双方とも落下後のスタンなし。触れても無害(harmless)。
 - **火の玉**: `Game` が `interval` 秒ごとに、左右端のどちらかから、**横幅の半分以上が地面の段(と最下段)**のランダムな1段に出し、反対端まで直進(ループしない)。触れるとミス。
 - ミス: 追尾/直進/火の玉に触れる(`near<.65`)、落ちるドラム缶の下。残機 `player.lives`=3、0でゲームオーバー。
@@ -141,40 +144,41 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
   キャラの操作は `g.keys={right:true}` で再現し、`g.update(1/60)` を回す。止めたいマスの手前でキーを離すこと(到着の瞬間に次の一歩を決めるため)。
   テストでは `g.state='play'; g.timers=[]; g.enemies=[]` で準備待ちを飛ばす。壊すものが1つも無いステージは即クリア扱いになるので壁を1つ置く。
 - `npm run test:e2e` … `test/e2e.js`。playwright(+ chromium)が必要。2回目のプレイ・エディタの端・全消しを実ブラウザで確認。
+
 ################################################################
 # 第2部: ファイル一覧(第3部の掲載順)
 ################################################################
 docs/SPEC.md  (第1部に掲載)
-index.html  (40行)
-style.css  (32行)
+index.html  (41行)
+style.css  (36行)
 package.json  (11行)
 js/config.js  (22行)
-js/core/gfx.js  (21行)
+js/core/gfx.js  (17行)
 js/core/sound.js  (3行)
-js/core/level.js  (56行)
+js/core/level.js  (60行)
 js/core/actor.js  (27行)
 js/objects/object.js  (22行)
 js/objects/wall.js  (7行)
 js/objects/ladder.js  (9行)
 js/objects/drum.js  (7行)
-js/objects/iron.js  (8行)
-js/objects/bomb.js  (15行)
+js/objects/iron.js  (12行)
+js/objects/bomb.js  (44行)
 js/objects/door.js  (7行)
 js/enemies/enemy.js  (8行)
-js/enemies/chaser.js  (5行)
+js/enemies/chaser.js  (163行)
 js/enemies/fastchaser.js  (1行)
-js/enemies/runner.js  (9行)
-js/enemies/foreman.js  (13行)
+js/enemies/runner.js  (31行)
+js/enemies/foreman.js  (46行)
 js/enemies/fireball.js  (6行)
-js/player.js  (16行)
+js/player.js  (19行)
 js/levels/sample.js  (16行)
-js/game.js  (45行)
-js/editor.js  (37行)
+js/game.js  (49行)
+js/editor.js  (38行)
 js/params.js  (14行)
-js/main.js  (45行)
+js/main.js  (46行)
 test/e2e.js  (36行)
 test/harness.js  (14行)
-test/logic.test.js  (109行)
+test/logic.test.js  (264行)
 tools/make-context.js  (67行)
 
 ################################################################
@@ -191,6 +195,7 @@ tools/make-context.js  (67行)
 <div id="pad" class="pl"><div id="dpad"><i>▲</i><i>◀</i><i>▶</i><i>▼</i></div><div id="hbtn">🔨</div></div>
 <div id="editor" class="ed">
  <div id="palette"></div>
+ <div class="row" id="runnerDirection"><span>直進敵の開始方向</span><button type="button" data-runner-dir="-1">← 左向き</button><button type="button" data-runner-dir="1">右向き →</button></div>
  <div class="row"><button id="bTest">▶ テスト</button><button id="bSave">保存</button><button id="bLoad">読込</button><button id="bClear">全消し</button><button id="bParam">⚙ 設定</button><button id="bCode">コード</button>
   <label>列 <input id="cw" type="number" min="8" max="40"></label><label>行 <input id="ch" type="number" min="6" max="30"></label></div>
 </div>
@@ -256,6 +261,10 @@ details details{margin-left:12px}
 #pbody label{display:flex;gap:8px;align-items:center;margin:6px 0}#pbody input{flex:1}
 textarea{width:100%;height:50vh;font:12px monospace;background:#222;color:#ddd;user-select:text;-webkit-user-select:text}
 
+#runnerDirection{gap:6px}
+#runnerDirection span{font-size:12px;color:#ccc}
+#runnerDirection button.sel{outline:2px solid #fc3;background:#554719}
+
 ===== FILE: package.json =====
 {
   "name": "rekikuru",
@@ -311,6 +320,7 @@ WC.Gfx.terrain=(c,L,s)=>{
  }
  L.objs.forEach(o=>WC.Gfx.draw(o.kind,c,o.x*s,(o.fy??o.y)*s,s,o))};
 WC.Gfx.fns.iron=(c,x,y,s)=>{c.fillStyle='#778';c.fillRect(x+12,y,8,s)};
+
 ===== FILE: js/core/sound.js =====
 // WC.Sound.files.hit='hit.wav' のように登録すると鳴る。
 // イベント名: hit wall ladder bomb door drumHit drumLand fall die clear
@@ -377,6 +387,7 @@ WC.Level=class{
     const k=n[0]+','+n[1];if(seen.has(k))continue;seen.add(k);q.push([n[0],n[1],f||d])}}
   return null}
 };
+
 ===== FILE: js/core/actor.js =====
 // マス移動する全キャラの基底。サブクラスは decide(g)→[dx,dy]|null を実装。
 WC.Actor=class{
@@ -472,6 +483,7 @@ WC.Objects.I=class extends WC.Obj{
  }
  onBlast(g){this.onHit(g)}
 };
+
 ===== FILE: js/objects/bomb.js =====
 // 爆弾: 叩く(または連鎖)で点火→起爆。起爆時、そのマスにいるキャラは全員異常落下。
 // 横方向は、破壊可能なオブジェクトを一撃ずつ連鎖破壊する。次のマスへは0.2秒待って進む。
@@ -517,6 +529,7 @@ WC.Objects.B=class extends WC.Obj{
   for(const dy of[-1,1]){const o=L.get(this.x,this.y+dy);o&&o.onBlast&&o.onBlast(g)}
  }
 };
+
 ===== FILE: js/objects/door.js =====
 WC.Objects.D=class extends WC.Obj{
  constructor(x,y){super(x,y,'door');this.open=0;this.force=false}
@@ -540,7 +553,9 @@ WC.Enemy=class extends WC.Actor{
 // 1: 追尾。経路探索はせず、同じ水平列で見つかる梯子と直近の移動方向で判断する。
 // 左右端をまたいだ経路探索は行わない。実際の移動自体は Level.wrap に従う。
 WC.Enemies['1']=class extends WC.Enemy{
- constructor(x,y,n='chaser'){super(x,y,n);this.bg=false}
+ constructor(x,y,n='chaser'){super(x,y,n);this.bg=false;this._chaserRecheck=true}
+ // READY終了＝ゲーム開始も、追跡判定を許可するイベントとして扱う。
+ onGameStart(g){this._chaserRecheck=true}
  // 落下開始を明示的に記録する。Actor.fast は通常落下後も残るため、
  // fast だけで着地を判定すると、その後の横移動でも落下後処理が誤発火する。
  next(g){
@@ -549,32 +564,50 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(startsNormalFall)this._chaserNormalFalling=true;
   super.next(g);
  }
- // 到着イベントだけを処理する。プレイヤーと同じ高さになっただけでは向きを変えない。
+ // 向きの変更は、着地・梯子到着などの到着イベント内だけで行う。
+ // decide() は歩行中の向きを変更せず、次の移動先だけを返す。
+ turnTowardPlayer(g){
+  const p=g.player;
+  if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
+ }
+ // 敵と同じ高さの左側にドラム缶があれば右、なければ左を選ぶ。
+ barrelFallbackDir(g){
+  const L=g.level;
+  const hasDrumLeft=[...L.objs.values()].some(o=>o.kind==='drum'&&o.y===this.y&&o.x<this.x);
+  return hasDrumLeft?1:-1;
+ }
+ // 同じ高さでプレイヤーとの間にドラム缶があるかを調べる。
+ drumBetweenPlayer(g){
+  const L=g.level,p=g.player;
+  const left=Math.min(this.x,p.x),right=Math.max(this.x,p.x);
+  return p.y===this.y&&[...L.objs.values()].some(o=>o.kind==='drum'&&o.y===this.y&&o.x>left&&o.x<right);
+ }
+ hasLadderAtHeight(g){
+  const L=g.level;
+  for(let x=0;x<L.w;x++)if(L.ladder(x,this.y))return true;
+  return false;
+ }
  arrive(g){
   super.arrive(g);
   if(this.hidden||this.abn)return;
   const p=g.player,L=g.level;
-  if(this._chaserNormalFalling){
+  if(this._chaserNormalFalling&&L.standable(this.x,this.y,this.bg)){
    this._chaserNormalFalling=false;
-   if(this.y===p.y){
-    // 通常落下の着地先がプレイヤーと同じ高さなら、その着地イベントでプレイヤー側へ向き直る。
-    if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
-   }else{
-    // 高さが違う場合は、有効な梯子があればそちらへ向きを合わせる。
-    const dy=p.y<this.y?-1:1,dx=this.ladderAhead(g,dy);
-    if(dx!==null&&dx!==0){
-     const dir=dx>0?1:-1;
-     if(L.canStep(this.x,this.y,dir,0,this.bg))this.dir=dir;
-    }
-   }
+   this._chaserRecheck=true;
+   // 足場に実際に着地した瞬間だけ追跡判定を許可する。
+   if(this.y===p.y)this.turnTowardPlayer(g);
   }
-  // 梯子の先端の一つ上のマスに到着した瞬間も、プレイヤーとの高さを再判定する。
+  // 梯子の先端の一つ上のマスに到着したイベント。
   if(L.ladder(this.x,this.y+1)&&!L.ladder(this.x,this.y)){
    this._chaserAtLadderTip=true;
-   if(this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   this._chaserRecheck=true;
+   if(this.y===p.y)this.turnTowardPlayer(g);
   }
-  // 梯子のマスに到着したイベントで、同じ高さならプレイヤー側へ向き直る。
-  if(L.ladder(this.x,this.y)&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+  // 梯子マスへの到着時だけ追跡判定を許可する。
+  if(L.ladder(this.x,this.y)){
+   this._chaserRecheck=true;
+   if(this.y===p.y)this.turnTowardPlayer(g);
+  }
  }
  // この敵自身が異常落下を始めた場合に限り、スタン復帰時の再判定を有効にする。
  startAbn(){
@@ -587,13 +620,38 @@ WC.Enemies['1']=class extends WC.Enemy{
   const p=g.player;
   if(wasStunned&&this.stun<=0&&this._chaserFallStun){
    this._chaserFallStun=false;
-   if(!this.abn&&!this.hidden&&this.y===p.y&&p.x!==this.x)this.dir=p.x>this.x?1:-1;
+   if(!this.abn&&!this.hidden){
+    this._chaserRecheck=true;
+    if(this.y===p.y)this.turnTowardPlayer(g);
+   }
   }
  }
+ // dir 方向の隣マスが障害物で塞がれているか。
+ // ドラム缶の上から普通の足場へは上がれない。この段差も壁と同じく塞がれている扱いにする。
+ obstacleAt(g,dir){
+  const L=g.level,nx=L.wrap(this.x+dir);
+  return !this.bg&&(L.blocked(nx,this.y)||L.onDrum(this.x,this.y)&&L.ground(nx,this.y));
+ }
  // 障害物が実際に進行方向の隣マスを塞いでいる場合だけ反転する。
- reverseIfObstacle(g){
-  const L=g.level,nx=L.wrap(this.x+this.dir);
-  if(!this.bg&&L.blocked(nx,this.y))this.dir*=-1;
+ reverseIfObstacle(g){if(this.obstacleAt(g,this.dir))this.dir*=-1}
+ // 梯子マス(梯子の上、または梯子先端の一つ上)。ここは向きを判定し直すトリガーのマス。
+ onLadderTrigger(g){
+  const L=g.level;
+  return L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1));
+ }
+ // 追跡判定の結果としての向きを返す(this.dir は書き換えない)。cur=判定で向きが決まらない時に維持する向き。
+ chooseDir(g,cur){
+  const p=g.player,dy=p.y<this.y?-1:1;
+  if(this.y===p.y){
+   // 同じ高さでプレイヤーとの間にドラム缶があれば、プレイヤーから遠ざかる。
+   // ドラム缶がなければ従来どおりプレイヤー側へ向く。
+   if(this.drumBetweenPlayer(g))return p.x>this.x?-1:1;
+   return p.x!==this.x?(p.x>this.x?1:-1):cur;
+  }
+  const dx=this.ladderAhead(g,dy);
+  // プレイヤーの高さへ近づける梯子がない場合に限り、ドラム缶で向きを決める。
+  if(dx===null)return this.barrelFallbackDir(g);
+  return dx===0?cur:(dx>0?1:-1);
  }
  helpfulLadder(g,x,y,dy){
   const L=g.level;
@@ -604,14 +662,29 @@ WC.Enemies['1']=class extends WC.Enemy{
  }
  ladderAhead(g,dy){
   const L=g.level,p=g.player;
-  if(this.helpfulLadder(g,this.x,this.y,dy))return 0;
-  const dir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
-  // 現在の水平列だけをプレイヤー側へ検索し、左右端を越えて探さない。
-  for(let x=this.x+dir;x>=0&&x<L.w;x+=dir){
-   if(this.helpfulLadder(g,x,this.y,dy))return x-this.x;
-   if(x===p.x)break;
+  // 現在地の梯子・先端上で上下移動できるなら、別の梯子を探さない。
+  if((L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)))&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
+  // 高さを一段でもプレイヤー側へ近づけられる梯子を、歩いて到達できる範囲から探す。
+  // 候補探索では x=0 と x=L.w-1 を壁として扱い、Level.wrap() による迂回はしない。
+  const candidates=[];
+  for(let x=0;x<L.w;x++){
+   if(x===this.x||!this.helpfulLadder(g,x,this.y,dy))continue;
+   const dir=x>this.x?1:-1;
+   let cx=this.x,reachable=true;
+   while(cx!==x){
+    const nx=cx+dir;
+    if(nx<0||nx>=L.w||!L.canStep(cx,this.y,dir,0,this.bg)){reachable=false;break}
+    // 横移動後に落下するマスは「歩いて到達できる同じ足場」の候補に含めない。
+    const next=L.dest(cx,this.y,dir,0,this.bg);
+    if(!next||next[0]!==nx||next[1]!==this.y){reachable=false;break}
+    cx=nx;
+   }
+   if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
-  return null;
+  if(!candidates.length)return null;
+  // 最短の梯子を選び、同距離ならドラム缶に関係なく左を優先する。
+  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===-1?-1:b.dir===-1?1:0));
+  return candidates[0].x-this.x;
  }
  decide(g){
   const L=g.level,p=g.player;
@@ -620,38 +693,61 @@ WC.Enemies['1']=class extends WC.Enemy{
    this._chaserAtLadderTip=false;
    if(!L.ground(this.x,this.y)&&!L.blocked(this.x,this.y+1)&&L.ladder(this.x,this.y+1))return[0,1];
   }
-  if(this.y===p.y){
-   // 高さが同じという理由だけでは方向転換しない。梯子到着時の判定は arrive() が担当。
-   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
-   return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
-  }
   const dy=p.y<this.y?-1:1;
-  if(this.helpfulLadder(g,this.x,this.y,dy))return[0,dy];
-  const dx=this.ladderAhead(g,dy);
-  if(dx!==null&&dx!==0){
-   const dir=dx>0?1:-1;
-   if(L.canStep(this.x,this.y,dir,0,this.bg)){this.dir=dir;return[dir,0]}
-   // 実際に障害物が塞いでいる場合だけ反転する。段差などの制限では向きを保つ。
-   if(!this.bg&&L.blocked(L.wrap(this.x+dir),this.y))this.dir=-dir;
-   return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
+  // 現在使っている梯子で上下に近づけるなら、そのまま使い続ける。
+  if(this.y!==p.y&&this.helpfulLadder(g,this.x,this.y,dy))return[0,dy];
+  // 追跡判定は指定イベントでのみ行う。高さが違うだけでは梯子を探し直さない。
+  if(this._chaserRecheck){
+   this._chaserRecheck=false;
+   this.dir=this.chooseDir(g,this.dir);
   }
-  // 有効な梯子が見つからない場合は直近の水平方向を維持する。
+  // 梯子マスは向きの再判定トリガー。判定の向きが障害物に塞がれ、反転した向きで再判定しても
+  // また元の向きになる場合は、反転と再判定が際限なく入れ替わる(実質ブルブル)ので、その場で止まる。
+  // 毎フレーム判定し直すため再判定を予約し続け、状況が変われば(プレイヤーの移動など)自然に抜ける。
+  if(this.obstacleAt(g,this.dir)&&this.onLadderTrigger(g)&&this.chooseDir(g,-this.dir)===this.dir){
+   this._chaserRecheck=true;
+   return null;
+  }
+  // 通常歩行中は現在の向きを維持する。反転は障害物に塞がれた場合だけ。
   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
   return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
  }
 };
+
 ===== FILE: js/enemies/fastchaser.js =====
 WC.Enemies['4']=class extends WC.Enemies['1']{constructor(x,y){super(x,y,'fastchaser')}};
 
 ===== FILE: js/enemies/runner.js =====
-// 2: プレイヤー無視で一方向へ。梯子があれば優先して1マス上り、次は必ず横へ。壁で反転。
+// 2: プレイヤー無視で巡回。上下は一段だけ移動し、次は横に進めるなら横へ進む。
 WC.Enemies['2']=class extends WC.Enemy{
- constructor(x,y){super(x,y,'runner');this.dir=Math.random()<.5?-1:1}
- decide(g){const L=g.level;
-  if(!this.side&&L.canStep(this.x,this.y,0,-1)){this.side=true;return[0,-1]}
-  this.side=false;
-  if(!L.canStep(this.x,this.y,this.dir,0))this.dir*=-1;
-  return L.canStep(this.x,this.y,this.dir,0)?[this.dir,0]:null}
+ constructor(x,y){super(x,y,'runner');this.dir=WC.Editor&&WC.Editor.runnerDir<0?-1:1;this.vertical=null;this.horizontalNext=false}
+ decide(g){
+  const L=g.level;
+  // 縦に一段移動した直後は、梯子より横移動を優先する。
+  if(this.horizontalNext){
+   this.horizontalNext=false;
+   const nx=L.wrap(this.x+this.dir);
+   if(!L.canStep(this.x,this.y,this.dir,0,this.bg)){
+    if(!this.bg&&(L.blocked(nx,this.y)||L.onDrum(this.x,this.y)&&L.ground(nx,this.y)))this.dir*=-1;
+   }
+   if(L.canStep(this.x,this.y,this.dir,0,this.bg))return[this.dir,0];
+  }
+  // 初回は上下の傾向を持たない。両方向に梯子がある場合だけ下りを先に試す。
+  const order=this.vertical===null?[1,-1]:[this.vertical,-this.vertical];
+  for(const dy of order){
+   if(L.canStep(this.x,this.y,0,dy,this.bg)){
+    this.vertical=dy;
+    this.horizontalNext=true;
+    return[0,dy];
+   }
+  }
+  // 梯子が使えないときは横移動。壁やドラム缶上の段差で進めなければ反転する。
+  const nx=L.wrap(this.x+this.dir);
+  if(!L.canStep(this.x,this.y,this.dir,0,this.bg)){
+   if(!this.bg&&(L.blocked(nx,this.y)||L.onDrum(this.x,this.y)&&L.ground(nx,this.y)))this.dir*=-1;
+  }
+  return L.canStep(this.x,this.y,this.dir,0,this.bg)?[this.dir,0]:null;
+ }
 };
 
 ===== FILE: js/enemies/foreman.js =====
@@ -686,8 +782,8 @@ WC.Enemies['3']=class extends WC.Enemies['1']{
   }
   if(this._foremanResume){
    this._foremanResume=false;
-   // 停止明けの最初の一歩で必ず追跡条件を再評価する。同じ高さならプレイヤー側へ向く。
-   if(this.y===p.y&&p.x!==this.x){this.dir=p.x>this.x?1:-1;if(g.level.canStep(this.x,this.y,this.dir,0,this.bg))return[this.dir,0]}
+   // 休止直後に共通ルールで追跡先を再判定する。
+   this._chaserRecheck=true;
    return super.decide(g)
   }
   if(this._stepsUntilPause<=0){
@@ -701,6 +797,7 @@ WC.Enemies['3']=class extends WC.Enemies['1']{
   return d;
  }
 };
+
 ===== FILE: js/enemies/fireball.js =====
 // 5: ファイヤーボール。Game側のタイマーで左右端から出現し反対端で消える。
 WC.Fireball=class extends WC.Enemy{
@@ -729,6 +826,7 @@ WC.Player=class extends WC.Actor{
  trap(){}
  paint(c,s,px,py){super.paint(c,s,px,py);if(this.busy>0){c.fillStyle='#ccc';c.fillRect((px+this.dir*.5+.3)*s,(py+.1)*s,s*.4,s*.3)}}
 };
+
 ===== FILE: js/levels/sample.js =====
 WC.Levels.sample=[
 "                    ",
@@ -753,7 +851,7 @@ WC.Game=class{
  load(){const L=this.level=new WC.Level(this.text);
   this.player=new WC.Player(L.player.x,L.player.y);
   this.enemies=L.spawns.map(s=>new s.E(s.x,s.y));
-  this.timers=[];this.epoch++;this.state='ready';this.later(1.5,()=>{this.state='play'});
+  this.timers=[];this.epoch++;this.state='ready';this.later(1.5,()=>{this.state='play';this.enemies.forEach(e=>{if(e.onGameStart)e.onGameStart(this)})});
   this.fireT=WC.CONFIG.enemies.fireball.interval}
  later(t,fn){this.timers.push({t,fn})}
  actors(){return[this.player,...this.enemies.filter(e=>!e.hidden&&!e.dead)]}
@@ -797,6 +895,7 @@ WC.Game=class{
   const m={ready:'READY?',dead:'MISS',clear:'CLEAR!',over:'GAME OVER'}[this.state];
   if(m){c.font='32px monospace';c.textAlign='center';c.fillText(m,L.w*s/2,L.h*s/2);c.textAlign='left'}}
 };
+
 ===== FILE: js/editor.js =====
 // マリメ風エディタ。パレットから選んでマップをタップ/ドラッグで配置。
 WC.SPR={P:'player','1':'chaser','2':'runner','3':'foreman','4':'fastchaser'};
@@ -807,7 +906,8 @@ WC.TOOLS=[
  {ch:'P',k:'player',n:'プレイヤー'},{ch:'1',k:'chaser',n:'追尾'},{ch:'2',k:'runner',n:'直進'},{ch:'3',k:'foreman',n:'背景敵'},{ch:'4',k:'fastchaser',n:'高速'},
  {ch:' ',k:null,n:'消す'}];
 WC.Editor={
- grid:[],tool:'=',
+ grid:[],tool:'=',runnerDir:1,
+ setRunnerDir(dir){this.runnerDir=dir<0?-1:1;document.querySelectorAll('[data-runner-dir]').forEach(b=>b.classList.toggle('sel',+b.dataset.runnerDir===this.runnerDir))},
  load(t){const rows=t.replace(/\r/g,'').split('\n').filter(r=>r.length),w=Math.max(...rows.map(r=>r.length));this.grid=rows.map(r=>r.padEnd(w,' ').split(''))},
  text(){return this.grid.map(r=>r.join('')).join('\n')},
  resize(w,h){const g=[];for(let y=0;y<h;y++){g.push([]);for(let x=0;x<w;x++)g[y].push((this.grid[y]||[])[x]||' ')}this.grid=g},
@@ -861,7 +961,7 @@ WC.Params={
  // キャンバスを残り領域にアスペクト比維持でフィット(ページはスクロールさせない)
  function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k)+'px';cv.style.height=Math.floor(cv.height*k)+'px'}
  WC.onFit=fit;addEventListener('resize',fit);
- document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('button'))e.preventDefault()}); // ボタンにフォーカスさせない
+ // ボタン全体へのpointerdown preventDefaultはクリックを妨げるため設定しない。
  function setMode(m){mode=m;document.body.className=m;
   if(m=='title'){G=null;cv.width=640;cv.height=480;c.fillStyle='#000';c.fillRect(0,0,640,480)}
   if(m=='edit'){G=null;sizes();E.render(c)}
@@ -872,14 +972,15 @@ WC.Params={
  function sizes(){$('cw').value=E.grid[0].length;$('ch').value=E.grid.length}
  const sheet=$('sheet'),open=s=>{sheet.dataset.s=s;sheet.hidden=false;if(s=='code')$('lv').value=E.text()};
  E.load(WC.Levels.sample);E.palette($('palette'));E.bind(cv,c);WC.Params.build($('pbody'));
+ document.querySelectorAll('[data-runner-dir]').forEach(b=>b.onclick=()=>E.setRunnerDir(+b.dataset.runnerDir));E.setRunnerDir(E.runnerDir);
  $('bPlay').onclick=()=>play(E.text(),false);
  $('bEdit').onclick=()=>setMode('edit');
  $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
  $('bTest').onclick=()=>E.text().includes('P')?play(E.text(),true):msg('プレイヤー(P)を置いてね');
  $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.render(c)};
  $('cw').onchange=$('ch').onchange=()=>{E.resize(Math.min(40,Math.max(8,+$('cw').value||20)),Math.min(30,Math.max(6,+$('ch').value||15)));sizes();E.render(c);fit()};
- $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
- $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
+ $('bSave').onclick=()=>{try{localStorage.setItem('wc1',JSON.stringify({level:E.text(),cfg:WC.CONFIG,runnerDir:E.runnerDir}));msg('保存した')}catch(e){msg('保存できない環境。コードをコピーしてね')}};
+ $('bLoad').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('wc1'));E.load(d.level);WC.merge(WC.CONFIG,d.cfg);E.setRunnerDir(d.runnerDir===-1?-1:1);WC.Params.build($('pbody'));sizes();E.render(c);fit();msg('読み込んだ')}catch(e){msg('保存データなし')}};
  $('bParam').onclick=()=>open('param');$('bCode').onclick=()=>open('code');$('sClose').onclick=()=>sheet.hidden=true;
  $('pReset').onclick=()=>{WC.Params.reset();WC.Params.build($('pbody'))};
  $('lvLoad').onclick=()=>{if($('lv').value.trim()){E.load($('lv').value);sizes();E.render(c);fit();sheet.hidden=true;msg('読み込んだ')}};
@@ -1044,6 +1145,59 @@ test('左右ループ: 連続して動く/またいで当たる/火の玉はル�
  const ch=new WC.Enemies['1'](9,2);g.player.rx=-.4;ch.rx=9;ok(g.near(g.player,ch)<.65,'端をまたいで接触判定');
  const fb=new WC.Fireball(0,2,1);fb.rx=-.3;g.player.rx=9;ok(g.near(fb,g.player)>.65,'火の玉はループしない');
 });
+test('追尾敵: 有効な梯子がない時はプレイヤー方向に関係なく現在の向きを維持する',()=>{
+ for(const Enemy of [WC.Enemies['1'],WC.Enemies['3']]){
+  const g=mk(['          ','  ======W ','  H       ','==========']);
+  const e=new Enemy(2,1);g.enemies=[e];put(g.player,7,0);put(e,2,1);e.dir=-1;
+  e.arrive(g);
+  const d=e.decide(g);
+  ok(e.dir===-1,'有効な梯子がないのでプレイヤーが右にいても左向きを維持する');
+  ok(d&&d[0]===-1,'現在の向きに歩き続ける');
+ }
+});
+test('追尾敵: 複数の有効な梯子がある時は敵自身に最も近い梯子を選ぶ',()=>{
+ const g=mk(['          ','          ','==========','          ']);
+ const e=new WC.Enemies['1'](5,2);put(e,5,2);put(g.player,9,0);
+ // 梯子探索の候補条件だけを固定し、距離の優先順位を独立して検証する。
+ e.helpfulLadder=(game,x,y,dy)=>x===3||x===8;
+ g.level.ladder=()=>false;
+ g.level.canStep=()=>true;
+ g.level.dest=(x,y,dx,dy)=>[x+dx,y];
+ const dx=e.ladderAhead(g,-1);
+ ok(dx===-2,'敵から2マスの左梯子を、3マス先の右梯子より優先する');
+ // 左右同距離なら、左にドラム缶があっても左梯子を選ぶ。
+ put(e,5,2);put(g.player,9,0);
+ e.helpfulLadder=(game,x,y,dy)=>x===3||x===7;
+ g.level.objs.set('2,2',{kind:'drum',x:2,y:2});
+ const tiedLeftDrum=e.ladderAhead(g,-1);
+ ok(tiedLeftDrum===-2,'左にドラム缶があっても同距離なら左梯子を選ぶ');
+ // ドラム缶が敵の右側でも同じく左梯子を選ぶ。
+ g.level.objs.delete('2,2');
+ g.level.objs.set('8,2',{kind:'drum',x:8,y:2});
+ const tiedRightDrum=e.ladderAhead(g,-1);
+ ok(tiedRightDrum===-2,'右にドラム缶があっても同距離なら左梯子を選ぶ');
+});
+test('ドラム缶上の敵: 足場へ上がれずぶつかったら反転する',()=>{
+ const g=mk(['          ','          ','====  == W','====O=====','W         ']);
+ for(const Enemy of [WC.Enemies['1'],WC.Enemies['2'],WC.Enemies['3'],WC.Enemies['4']]){
+  const e=new Enemy(4,2);put(e,4,2);e.dir=-1;
+  if(Enemy===WC.Enemies['2'])e.vertical=1;
+  const d=e.decide(g);
+  ok(e.dir===1&&d&&d[0]===1,'ドラム缶上で足場に阻まれたら反転して進む');
+ }
+});
+test('直進敵: 縦移動は一段だけ。次は横を優先し、逆向きしかなければ切り替える',()=>{
+ let g=mk(['          ','  H       ','  H       ','  H       ','==========']);
+ let e=new WC.Enemies['2'](2,1);g.enemies=[e];put(e,2,1);
+ ok(e.vertical===null,'初期状態では上下傾向が未確定');
+ let d=e.decide(g);ok(d&&d[0]===0&&d[1]===1,'梯子を実際に下る移動を選ぶ');
+ ok(e.vertical===1,'初回に下った時点で下り傾向が決まる');
+ d=e.decide(g);ok(d&&d[0]===1&&d[1]===0,'縦に一段移動した次は、梯子があっても横へ進む');
+ e.horizontalNext=false;put(e,2,3);d=e.decide(g);ok(d&&d[0]===0&&d[1]===-1,'下り梯子がなく上り梯子だけなら上る');
+ ok(e.vertical===-1,'逆向きに上った後は上り傾向へ切り替わる');
+ WC.Editor.runnerDir=-1;const left=new WC.Enemies['2'](2,3);WC.Editor.runnerDir=1;const right=new WC.Enemies['2'](2,3);
+ ok(left.dir===-1&&right.dir===1,'ステージ全体の開始方向設定が直進敵に適用される');
+});
 test('追尾と親方: 通常落下の着地時にプレイヤーと同じ高さならプレイヤー側へ歩く',()=>{
  for(const Enemy of [WC.Enemies['1'],WC.Enemies['3']]){
   const g=mk(['          ','  1       ','          ','P========W','          ']);
@@ -1134,7 +1288,38 @@ test('ランダム操作で壊れない(例外・不正な位置が出ない)',(
 test('エディタの全パレットが読み込める',()=>{
  for(const t of WC.TOOLS)if(t.ch!==' '&&t.ch!=='='){const L=new WC.Level('  '+t.ch+'  \n=====');ok(L.objs.size>0||L.spawns.length>0||L.player.x==2,`${t.n}(${t.ch})`)}
 });
+test('追尾敵: 高さが違うだけでは梯子を探し直さず、指定イベント時だけ再判定する',()=>{
+ const g=mk(['          ','          ','P=======W ','==========']);
+ const e=new WC.Enemies['1'](4,2);g.enemies=[e];put(g.player,1,0);put(e,4,2);e.dir=1;
+ let searches=0;
+ e.helpfulLadder=()=>false;
+ e.ladderAhead=()=>{searches++;return -2};
+ e._chaserRecheck=false;
+ const ordinary=e.decide(g);
+ ok(searches===0,'通常歩行中は梯子探索を呼ばない');
+ ok(e.dir===1&&ordinary&&ordinary[0]===1,'高さが違っても現在の右向きを維持する');
+ e._chaserRecheck=true;
+ const triggered=e.decide(g);
+ ok(searches===1,'指定イベント後だけ梯子を再探索する');
+ ok(e.dir===-1&&triggered&&triggered[0]===-1,'再判定で有効な梯子の方向へ向く');
+});
+test('追尾敵: 梯子マスで「判定→ドラム缶で反転→再判定」が往復する時は、その場で止まる',()=>{
+ // 梯子の上端マス(4,1)。左(2,1)に離れたドラム缶があるので判定は右、右隣(5,1)もドラム缶で塞がれ反転→また右、の繰り返し。
+ const rows=['P========','  O==O   ','    L    ','====W===='];
+ let g=mk(rows);let e=new WC.Enemies['1'](4,1);g.enemies=[e];put(g.player,0,0);e._chaserRecheck=true;
+ const seen=new Set();for(let i=0;i<240;i++){g.update(1/60);seen.add(e.x+','+e.y)}
+ ok(seen.size===1&&e.x===4&&e.y===1,'梯子マスから一歩も動かない(左へ動き出さない)');
+ // 左にドラム缶が無ければ往復にならないので、普通に左へ歩く
+ g=mk(['P========','   ==O   ','    L    ','====W=====']);e=new WC.Enemies['1'](4,1);g.enemies=[e];put(g.player,0,0);e._chaserRecheck=true;
+ for(let i=0;i<60;i++)g.update(1/60);
+ ok(e.x!==4||e.y!==1,'往復にならない配置では止まらない');
+ // 梯子の無いマスでは従来どおりドラム缶で反転して歩く
+ g=mk(['P========','  O==O   ','         ','====W=====']);e=new WC.Enemies['1'](4,1);g.enemies=[e];put(g.player,0,0);e._chaserRecheck=true;
+ for(let i=0;i<60;i++)g.update(1/60);
+ ok(e.x!==4,'梯子マスでなければ止まらない(従来どおり反転して歩く)');
+});
 console.log(fails?`\n${fails} 件失敗 / ${count} 件`:`\n全部OK (${count} 件)`);process.exit(fails?1:0);
+
 ===== FILE: tools/make-context.js =====
 #!/usr/bin/env node
 // npm run context → context.txt を生成する。
