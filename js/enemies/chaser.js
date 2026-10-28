@@ -115,10 +115,9 @@ WC.Enemies['1']=class extends WC.Enemy{
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
   if(!candidates.length)return null;
-  const preferredDir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
-  // 有効な梯子がある限り、ドラム缶の方向ルールは適用しない。
-  // 最短の梯子を選び、同距離ならプレイヤー側を優先する。
-  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===preferredDir?-1:b.dir===preferredDir?1:0));
+  const tieBreakDir=this.barrelFallbackDir(g);
+  // 最短の梯子を選び、同距離ならドラム缶の方向ルールで左右を決める。
+  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===tieBreakDir?-1:b.dir===tieBreakDir?1:0));
   return candidates[0].x-this.x;
  }
  decide(g){
