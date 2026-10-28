@@ -2,6 +2,8 @@
 // 左右端をまたいだ経路探索は行わない。実際の移動自体は Level.wrap に従う。
 WC.Enemies['1']=class extends WC.Enemy{
  constructor(x,y,n='chaser'){super(x,y,n);this.bg=false;this._chaserRecheck=true}
+ // READY終了＝ゲーム開始も、追跡判定を許可するイベントとして扱う。
+ onGameStart(g){this._chaserRecheck=true}
  // 落下開始を明示的に記録する。Actor.fast は通常落下後も残るため、
  // fast だけで着地を判定すると、その後の横移動でも落下後処理が誤発火する。
  next(g){
