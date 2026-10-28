@@ -6,6 +6,9 @@ button{background:#333;color:#eee;border:1px solid #555;border-radius:8px;paddin
 #top,#pad,#editor{flex:none}
 #top{min-height:36px;display:flex;gap:8px;align-items:center}
 #stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+body.edit #stage{overflow:auto;overscroll-behavior:contain}
+body.edit #stage.zoomed{align-items:flex-start;justify-content:flex-start}
+#zoomLabel{align-self:center;font-size:12px;min-width:38px;text-align:center;color:#fc3}
 canvas{background:#000;image-rendering:pixelated;display:block}
 body.edit #cv,body.play #cv{touch-action:none}
 body:not(.edit) .ed,body:not(.play) .pl,body:not(.title) #titlebox,body.title .np{display:none}
