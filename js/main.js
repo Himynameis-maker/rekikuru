@@ -4,7 +4,7 @@
  let G=null,mode='title',testing=false,last=0,mt,zoom=1;
  const msg=t=>{$('msg').textContent=t;clearTimeout(mt);mt=setTimeout(()=>$('msg').textContent='',2000)};
  // キャンバスを残り領域にアスペクト比維持でフィット(ページはスクロールさせない)
- function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k*zoom)+'px';cv.style.height=Math.floor(cv.height*k*zoom)+'px';s.classList.toggle('zoomed',mode==='edit'&&zoom>1);$('zoomLabel').textContent=Math.round(zoom*100)+'%'}
+ function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height),z=mode==='edit'?zoom:1;cv.style.width=Math.floor(cv.width*k*z)+'px';cv.style.height=Math.floor(cv.height*k*z)+'px';s.classList.toggle('zoomed',mode==='edit'&&zoom>1);$('zoomLabel').textContent=Math.round(zoom*100)+'%'}
  function setZoom(z){zoom=Math.max(1,Math.min(3,Math.round(z*4)/4));fit()}
  WC.onFit=fit;addEventListener('resize',fit);
  // ボタン全体へのpointerdown preventDefaultはクリックを妨げるため設定しない。
