@@ -91,14 +91,6 @@ WC.Enemies['1']=class extends WC.Enemy{
   const L=g.level,p=g.player;
   // 現在地の梯子・先端上で上下移動できるなら、別の梯子を探さない。
   if((L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)))&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
-  // 梯子の途中の横から上段へ登れる場合。検索時は左右端を越えて反対側へ回り込まない。
-  if(dy<0&&!L.ladder(this.x,this.y)&&!L.ladder(this.x,this.y+1)&&L.canStep(this.x,this.y,0,dy,this.bg)){
-   const sides=[-1,1].filter(d=>this.x+d>=0&&this.x+d<L.w&&L.ladder(this.x+d,this.y));
-   if(sides.length){
-    const preferred=p.x===this.x?this.dir:(p.x>this.x?1:-1);
-    return sides.includes(preferred)?preferred:sides[0];
-   }
-  }
   // 高さを一段でもプレイヤー側へ近づけられる梯子を、歩いて到達できる範囲から探す。
   // 候補探索では x=0 と x=L.w-1 を壁として扱い、Level.wrap() による迂回はしない。
   const candidates=[];
