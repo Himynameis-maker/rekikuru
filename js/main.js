@@ -1,10 +1,11 @@
 (()=>{
  const $=id=>document.getElementById(id),cv=$('cv'),c=cv.getContext('2d'),E=WC.Editor,K={};
  const KEYS={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'hit',KeyZ:'hit'};
- let G=null,mode='title',testing=false,last=0,mt;
+ let G=null,mode='title',testing=false,last=0,mt,zoom=1;
  const msg=t=>{$('msg').textContent=t;clearTimeout(mt);mt=setTimeout(()=>$('msg').textContent='',2000)};
  // キャンバスを残り領域にアスペクト比維持でフィット(ページはスクロールさせない)
- function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k)+'px';cv.style.height=Math.floor(cv.height*k)+'px'}
+ function fit(){const s=$('stage'),k=Math.min(s.clientWidth/cv.width,s.clientHeight/cv.height);cv.style.width=Math.floor(cv.width*k*zoom)+'px';cv.style.height=Math.floor(cv.height*k*zoom)+'px';s.classList.toggle('zoomed',mode==='edit'&&zoom>1);$('zoomLabel').textContent=Math.round(zoom*100)+'%'}
+ function setZoom(z){zoom=Math.max(1,Math.min(3,Math.round(z*4)/4));fit()}
  WC.onFit=fit;addEventListener('resize',fit);
  // ボタン全体へのpointerdown preventDefaultはクリックを妨げるため設定しない。
  function setMode(m){mode=m;document.body.className=m;
@@ -20,6 +21,7 @@
  document.querySelectorAll('[data-runner-dir]').forEach(b=>b.onclick=()=>E.setRunnerDir(+b.dataset.runnerDir));E.setRunnerDir(E.runnerDir);
  $('bPlay').onclick=()=>play(E.text(),false);
  $('bEdit').onclick=()=>setMode('edit');
+ $('zoomIn').onclick=()=>setZoom(zoom+.25);$('zoomOut').onclick=()=>setZoom(zoom-.25);$('zoomReset').onclick=()=>{setZoom(1);$('stage').scrollTo(0,0)};
  $('bBack').onclick=()=>setMode(mode=='play'&&testing?'edit':'title');
  $('bTest').onclick=()=>E.text().includes('P')?play(E.text(),true):msg('プレイヤー(P)を置いてね');
  $('bClear').onclick=()=>{E.grid.forEach(r=>r.fill(' '));E.render(c)};
