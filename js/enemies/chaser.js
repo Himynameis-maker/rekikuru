@@ -117,9 +117,8 @@ WC.Enemies['1']=class extends WC.Enemy{
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
   if(!candidates.length)return null;
-  const tieBreakDir=this.barrelFallbackDir(g);
-  // 最短の梯子を選び、同距離ならドラム缶の方向ルールで左右を決める。
-  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===tieBreakDir?-1:b.dir===tieBreakDir?1:0));
+  // 最短の梯子を選び、同距離ならドラム缶に関係なく左を優先する。
+  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===-1?-1:b.dir===-1?1:0));
   return candidates[0].x-this.x;
  }
  decide(g){
