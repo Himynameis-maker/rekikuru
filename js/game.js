@@ -3,7 +3,7 @@ WC.Game=class{
  load(){const L=this.level=new WC.Level(this.text);
   this.player=new WC.Player(L.player.x,L.player.y);
   this.enemies=L.spawns.map(s=>new s.E(s.x,s.y));
-  this.timers=[];this.epoch++;this.state='ready';this.later(1.5,()=>{this.state='play'});
+  this.timers=[];this.epoch++;this.state='ready';this.later(1.5,()=>{this.state='play';this.enemies.forEach(e=>{if(e.onGameStart)e.onGameStart(this)})});
   this.fireT=WC.CONFIG.enemies.fireball.interval}
  later(t,fn){this.timers.push({t,fn})}
  actors(){return[this.player,...this.enemies.filter(e=>!e.hidden&&!e.dead)]}
