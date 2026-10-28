@@ -108,12 +108,17 @@ test('追尾敵: 複数の有効な梯子がある時は敵自身に最も近い
  g.level.dest=(x,y,dx,dy)=>[x+dx,y];
  const dx=e.ladderAhead(g,-1);
  ok(dx===-2,'敵から2マスの左梯子を、3マス先の右梯子より優先する');
- // 左にドラム缶があっても、同距離の有効な梯子が左右にあればプレイヤー側を選ぶ。
+ // 左にドラム缶があって同距離なら、ドラム缶ルールに従い右梯子を選ぶ。
  put(e,5,2);put(g.player,9,0);
  e.helpfulLadder=(game,x,y,dy)=>x===3||x===7;
  g.level.objs.set('2,2',{kind:'drum',x:2,y:2});
  const tied=e.ladderAhead(g,-1);
- ok(tied===2,'左にドラム缶があっても、同距離ならプレイヤー側の右梯子を選ぶ');
+ ok(tied===2,'左にドラム缶があるので、同距離ならドラム缶ルールで右梯子を選ぶ');
+ // ドラム缶が敵の右側なら、同距離の梯子は左を選ぶ。
+ g.level.objs.delete('2,2');
+ g.level.objs.set('8,2',{kind:'drum',x:8,y:2});
+ const tiedRightDrum=e.ladderAhead(g,-1);
+ ok(tiedRightDrum===-2,'右にドラム缶があるので、同距離なら左梯子を選ぶ');
 });
 test('ドラム缶上の敵: 足場へ上がれずぶつかったら反転する',()=>{
  const g=mk(['          ','          ','====  == W','====O=====','W         ']);
