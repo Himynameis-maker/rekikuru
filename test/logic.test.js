@@ -246,4 +246,19 @@ test('追尾敵: 高さが違うだけでは梯子を探し直さず、指定イ
  ok(searches===1,'指定イベント後だけ梯子を再探索する');
  ok(e.dir===-1&&triggered&&triggered[0]===-1,'再判定で有効な梯子の方向へ向く');
 });
+test('追尾敵: 梯子マスで「判定→ドラム缶で反転→再判定」が往復する時は、その場で止まる',()=>{
+ // 梯子の上端マス(4,1)。左(2,1)に離れたドラム缶があるので判定は右、右隣(5,1)もドラム缶で塞がれ反転→また右、の繰り返し。
+ const rows=['P========','  O==O   ','    L    ','====W===='];
+ let g=mk(rows);let e=new WC.Enemies['1'](4,1);g.enemies=[e];put(g.player,0,0);e._chaserRecheck=true;
+ const seen=new Set();for(let i=0;i<240;i++){g.update(1/60);seen.add(e.x+','+e.y)}
+ ok(seen.size===1&&e.x===4&&e.y===1,'梯子マスから一歩も動かない(左へ動き出さない)');
+ // 左にドラム缶が無ければ往復にならないので、普通に左へ歩く
+ g=mk(['P========','   ==O   ','    L    ','====W=====']);e=new WC.Enemies['1'](4,1);g.enemies=[e];put(g.player,0,0);e._chaserRecheck=true;
+ for(let i=0;i<60;i++)g.update(1/60);
+ ok(e.x!==4||e.y!==1,'往復にならない配置では止まらない');
+ // 梯子の無いマスでは従来どおりドラム缶で反転して歩く
+ g=mk(['P========','  O==O   ','         ','====W=====']);e=new WC.Enemies['1'](4,1);g.enemies=[e];put(g.player,0,0);e._chaserRecheck=true;
+ for(let i=0;i<60;i++)g.update(1/60);
+ ok(e.x!==4,'梯子マスでなければ止まらない(従来どおり反転して歩く)');
+});
 console.log(fails?`\n${fails} 件失敗 / ${count} 件`:`\n全部OK (${count} 件)`);process.exit(fails?1:0);
