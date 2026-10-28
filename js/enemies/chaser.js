@@ -115,9 +115,9 @@ WC.Enemies['1']=class extends WC.Enemy{
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
   if(!candidates.length)return null;
-  const preferredDir=this.barrelFallbackDir(g);
-  // 有効な梯子は、まず敵自身から近いものを選ぶ。
-  // 左右の梯子が同距離なら、プレイヤーの水平位置ではなくドラム缶で方向を決める。
+  const preferredDir=p.x===this.x?this.dir:(p.x>this.x?1:-1);
+  // 有効な梯子がある限り、ドラム缶の方向ルールは適用しない。
+  // 最短の梯子を選び、同距離ならプレイヤー側を優先する。
   candidates.sort((a,b)=>a.distance-b.distance||(a.dir===preferredDir?-1:b.dir===preferredDir?1:0));
   return candidates[0].x-this.x;
  }
@@ -144,8 +144,8 @@ WC.Enemies['1']=class extends WC.Enemy{
     if(dx!==null&&dx!==0){
      const dir=dx>0?1:-1;
      this.dir=dir;
-    }else if(dx===null&&!this.hasLadderAtHeight(g)){
-     // 近づける梯子も同じ高さの梯子もない場合だけ、ドラム缶で方向を決める。
+    }else if(dx===null){
+     // プレイヤーの高さへ近づける梯子がない場合に限り、ドラム缶で方向を決める。
      this.dir=this.barrelFallbackDir(g);
     }
    }
