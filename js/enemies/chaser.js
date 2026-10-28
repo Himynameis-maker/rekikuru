@@ -16,6 +16,23 @@ WC.Enemies['1']=class extends WC.Enemy{
   const p=g.player;
   if(p.x!==this.x)this.dir=p.x>this.x?1:-1;
  }
+ // 敵と同じ高さの左側にドラム缶があれば右、なければ左を選ぶ。
+ barrelFallbackDir(g){
+  const L=g.level;
+  const hasDrumLeft=[...L.objs.values()].some(o=>o.kind==='drum'&&o.y===this.y&&o.x<this.x);
+  return hasDrumLeft?1:-1;
+ }
+ // 同じ高さでプレイヤーとの間にドラム缶があるかを調べる。
+ drumBetweenPlayer(g){
+  const L=g.level,p=g.player;
+  const left=Math.min(this.x,p.x),right=Math.max(this.x,p.x);
+  return p.y===this.y&&[...L.objs.values()].some(o=>o.kind==='drum'&&o.y===this.y&&o.x>left&&o.x<right);
+ }
+ hasLadderAtHeight(g){
+  const L=g.level;
+  for(let x=0;x<L.w;x++)if(L.ladder(x,this.y))return true;
+  return false;
+ }
  arrive(g){
   super.arrive(g);
   if(this.hidden||this.abn)return;
@@ -98,10 +115,10 @@ WC.Enemies['1']=class extends WC.Enemy{
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
   if(!candidates.length)return null;
-  const towardPlayer=p.x===this.x?this.dir:(p.x>this.x?1:-1);
+  const preferredDir=this.barrelFallbackDir(g);
   // 有効な梯子は、まず敵自身から近いものを選ぶ。
-  // 同距離ならプレイヤーの水平位置側を優先し、それも同じなら走査順を維持する。
-  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===towardPlayer?-1:b.dir===towardPlayer?1:0));
+  // 左右の梯子が同距離なら、プレイヤーの水平位置ではなくドラム缶で方向を決める。
+  candidates.sort((a,b)=>a.distance-b.distance||(a.dir===preferredDir?-1:b.dir===preferredDir?1:0));
   return candidates[0].x-this.x;
  }
  decide(g){
@@ -118,12 +135,18 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(this._chaserRecheck){
    this._chaserRecheck=false;
    if(this.y===p.y){
-    this.turnTowardPlayer(g);
+    // 同じ高さでプレイヤーとの間にドラム缶があれば、プレイヤーから遠ざかる。
+    // ドラム缶がなければ従来どおりプレイヤー側へ向く。
+    if(this.drumBetweenPlayer(g))this.dir=p.x>this.x?-1:1;
+    else this.turnTowardPlayer(g);
    }else{
     const dx=this.ladderAhead(g,dy);
     if(dx!==null&&dx!==0){
      const dir=dx>0?1:-1;
      this.dir=dir;
+    }else if(dx===null&&!this.hasLadderAtHeight(g)){
+     // 近づける梯子も同じ高さの梯子もない場合だけ、ドラム缶で方向を決める。
+     this.dir=this.barrelFallbackDir(g);
     }
    }
   }
