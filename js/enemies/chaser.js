@@ -74,11 +74,32 @@ WC.Enemies['1']=class extends WC.Enemy{
    }
   }
  }
+ // dir 方向の隣マスが障害物で塞がれているか。
+ // ドラム缶の上から普通の足場へは上がれない。この段差も壁と同じく塞がれている扱いにする。
+ obstacleAt(g,dir){
+  const L=g.level,nx=L.wrap(this.x+dir);
+  return !this.bg&&(L.blocked(nx,this.y)||L.onDrum(this.x,this.y)&&L.ground(nx,this.y));
+ }
  // 障害物が実際に進行方向の隣マスを塞いでいる場合だけ反転する。
- reverseIfObstacle(g){
-  const L=g.level,nx=L.wrap(this.x+this.dir);
-  // ドラム缶の上から普通の足場へは上がれない。この段差も壁と同じく反転理由にする。
-  if(!this.bg&&(L.blocked(nx,this.y)||L.onDrum(this.x,this.y)&&L.ground(nx,this.y)))this.dir*=-1;
+ reverseIfObstacle(g){if(this.obstacleAt(g,this.dir))this.dir*=-1}
+ // 梯子マス(梯子の上、または梯子先端の一つ上)。ここは向きを判定し直すトリガーのマス。
+ onLadderTrigger(g){
+  const L=g.level;
+  return L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1));
+ }
+ // 追跡判定の結果としての向きを返す(this.dir は書き換えない)。cur=判定で向きが決まらない時に維持する向き。
+ chooseDir(g,cur){
+  const p=g.player,dy=p.y<this.y?-1:1;
+  if(this.y===p.y){
+   // 同じ高さでプレイヤーとの間にドラム缶があれば、プレイヤーから遠ざかる。
+   // ドラム缶がなければ従来どおりプレイヤー側へ向く。
+   if(this.drumBetweenPlayer(g))return p.x>this.x?-1:1;
+   return p.x!==this.x?(p.x>this.x?1:-1):cur;
+  }
+  const dx=this.ladderAhead(g,dy);
+  // プレイヤーの高さへ近づける梯子がない場合に限り、ドラム缶で向きを決める。
+  if(dx===null)return this.barrelFallbackDir(g);
+  return dx===0?cur:(dx>0?1:-1);
  }
  helpfulLadder(g,x,y,dy){
   const L=g.level;
@@ -126,21 +147,14 @@ WC.Enemies['1']=class extends WC.Enemy{
   // 追跡判定は指定イベントでのみ行う。高さが違うだけでは梯子を探し直さない。
   if(this._chaserRecheck){
    this._chaserRecheck=false;
-   if(this.y===p.y){
-    // 同じ高さでプレイヤーとの間にドラム缶があれば、プレイヤーから遠ざかる。
-    // ドラム缶がなければ従来どおりプレイヤー側へ向く。
-    if(this.drumBetweenPlayer(g))this.dir=p.x>this.x?-1:1;
-    else this.turnTowardPlayer(g);
-   }else{
-    const dx=this.ladderAhead(g,dy);
-    if(dx!==null&&dx!==0){
-     const dir=dx>0?1:-1;
-     this.dir=dir;
-    }else if(dx===null){
-     // プレイヤーの高さへ近づける梯子がない場合に限り、ドラム缶で方向を決める。
-     this.dir=this.barrelFallbackDir(g);
-    }
-   }
+   this.dir=this.chooseDir(g,this.dir);
+  }
+  // 梯子マスは向きの再判定トリガー。判定の向きが障害物に塞がれ、反転した向きで再判定しても
+  // また元の向きになる場合は、反転と再判定が際限なく入れ替わる(実質ブルブル)ので、その場で止まる。
+  // 毎フレーム判定し直すため再判定を予約し続け、状況が変われば(プレイヤーの移動など)自然に抜ける。
+  if(this.obstacleAt(g,this.dir)&&this.onLadderTrigger(g)&&this.chooseDir(g,-this.dir)===this.dir){
+   this._chaserRecheck=true;
+   return null;
   }
   // 通常歩行中は現在の向きを維持する。反転は障害物に塞がれた場合だけ。
   if(!L.canStep(this.x,this.y,this.dir,0,this.bg))this.reverseIfObstacle(g);
