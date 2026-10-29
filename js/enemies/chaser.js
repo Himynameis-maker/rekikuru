@@ -104,30 +104,33 @@ WC.Enemies['1']=class extends WC.Enemy{
  // 指定位置が、プレイヤーのいる高さへ進むために使える梯子マスかを判定する。
  // 候補として認めるのは「敵と同じ高さにある梯子」だけ。
  // 梯子の先端の一つ上は梯子そのものではないため、横方向の探索候補にはしない。
+ // プレイヤーの高さへ進める梯子候補を判定する。
+ // 同じ高さの梯子は上下方向へ進める場合に候補。
+ // 一段下の梯子は、プレイヤーが下にいる場合だけ候補。
+ // 一段上の梯子は、敵の位置から登って到達できないため候補にしない。
  helpfulLadder(g,x,y,dy){
   const L=g.level;
-  return L.ladder(x,y)&&L.canStep(x,y,0,dy,this.bg);
+  const sameLevel=L.ladder(x,y);
+  const oneBelow=dy>0&&L.ladder(x,y+1);
+  return (sameLevel||oneBelow)&&L.canStep(x,y,0,dy,this.bg);
  }
  ladderAhead(g,dy){
   const L=g.level;
-  // 現在位置が梯子上で、プレイヤー側へ上下移動できるならその梯子を使う。
-  if(L.ladder(this.x,this.y)&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
-  // 現在位置が梯子の先端の一つ上なら、下へ進む場合に限りその梯子へ入れる。
-  // この例外は現在位置だけに適用し、横方向の候補探索には適用しない。
-  if(dy>0&&!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
+  // 現在位置からそのままプレイヤー側へ梯子を進めるなら、横方向の探索は不要。
+  if(this.helpfulLadder(g,this.x,this.y,dy))return 0;
   const candidates=[];
   for(let x=0;x<L.w;x++){
    if(x===this.x||!this.helpfulLadder(g,x,this.y,dy))continue;
    const dir=x>this.x?1:-1;
    let cx=this.x,reachable=true;
+   // 同じ高さを横移動して候補位置まで到達できるかを調べる。
+   // 落下するかどうかは経路の可否に含めない。
    while(cx!==x){
-    const nx=cx+dir;
-    if(nx<0||nx>=L.w||!L.canStep(cx,this.y,dir,0,this.bg)){
+    if(!L.canStep(cx,this.y,dir,0,this.bg)){
      reachable=false;
      break;
     }
-    // 落下の有無は経路判定に使わない。横移動できるマスを連続して通れるかだけを見る。
-    cx=nx;
+    cx+=dir;
    }
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
