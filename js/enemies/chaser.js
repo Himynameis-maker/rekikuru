@@ -105,7 +105,9 @@ WC.Enemies['1']=class extends WC.Enemy{
   const L=g.level;
   // 通常の梯子上に加え、先端の一つ上から梯子へ降りる移動も有効とする。
   const onLadder=L.ladder(x,y);
-  const aboveLadder=!onLadder&&L.ladder(x,y+1);
+  // y+1 は下側。梯子の先端の一つ上から入れるのは、プレイヤーが下にいて降りる方向へ進む場合だけ。
+  // プレイヤーが上にいるとき、下側の梯子を「近づける梯子」と誤認して横移動しない。
+  const aboveLadder=dy>0&&!onLadder&&L.ladder(x,y+1);
   return (onLadder||aboveLadder)&&L.canStep(x,y,0,dy,this.bg);
  }
  ladderAhead(g,dy){
