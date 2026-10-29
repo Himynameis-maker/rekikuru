@@ -101,21 +101,20 @@ WC.Enemies['1']=class extends WC.Enemy{
   if(dx===null)return this.barrelFallbackDir(g);
   return dx===0?cur:(dx>0?1:-1);
  }
+ // 指定位置が、プレイヤーのいる高さへ進むために使える梯子マスかを判定する。
+ // 候補として認めるのは「敵と同じ高さにある梯子」だけ。
+ // 梯子の先端の一つ上は梯子そのものではないため、横方向の探索候補にはしない。
  helpfulLadder(g,x,y,dy){
   const L=g.level;
-  // 通常の梯子上に加え、先端の一つ上から梯子へ降りる移動も有効とする。
-  const onLadder=L.ladder(x,y);
-  // y+1 は下側。梯子の先端の一つ上から入れるのは、プレイヤーが下にいて降りる方向へ進む場合だけ。
-  // プレイヤーが上にいるとき、下側の梯子を「近づける梯子」と誤認して横移動しない。
-  const aboveLadder=dy>0&&!onLadder&&L.ladder(x,y+1);
-  return (onLadder||aboveLadder)&&L.canStep(x,y,0,dy,this.bg);
+  return L.ladder(x,y)&&L.canStep(x,y,0,dy,this.bg);
  }
  ladderAhead(g,dy){
-  const L=g.level,p=g.player;
-  // 現在地の梯子・先端上で上下移動できるなら、別の梯子を探さない。
-  if((L.ladder(this.x,this.y)||(!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)))&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
-  // 高さを一段でもプレイヤー側へ近づけられる梯子を、歩いて到達できる範囲から探す。
-  // 候補探索では x=0 と x=L.w-1 を壁として扱い、Level.wrap() による迂回はしない。
+  const L=g.level;
+  // 現在位置が梯子上で、プレイヤー側へ上下移動できるならその梯子を使う。
+  if(L.ladder(this.x,this.y)&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
+  // 現在位置が梯子の先端の一つ上なら、下へ進む場合に限りその梯子へ入れる。
+  // この例外は現在位置だけに適用し、横方向の候補探索には適用しない。
+  if(dy>0&&!L.ladder(this.x,this.y)&&L.ladder(this.x,this.y+1)&&L.canStep(this.x,this.y,0,dy,this.bg))return 0;
   const candidates=[];
   for(let x=0;x<L.w;x++){
    if(x===this.x||!this.helpfulLadder(g,x,this.y,dy))continue;
@@ -123,15 +122,16 @@ WC.Enemies['1']=class extends WC.Enemy{
    let cx=this.x,reachable=true;
    while(cx!==x){
     const nx=cx+dir;
-    if(nx<0||nx>=L.w||!L.canStep(cx,this.y,dir,0,this.bg)){reachable=false;break}
-    // 横移動後に落下するマスも探索経路として認める。
-    // ここでは梯子までの横方向の通行可否を調べ、落下の有無では候補から除外しない。
+    if(nx<0||nx>=L.w||!L.canStep(cx,this.y,dir,0,this.bg)){
+     reachable=false;
+     break;
+    }
+    // 落下の有無は経路判定に使わない。横移動できるマスを連続して通れるかだけを見る。
     cx=nx;
    }
    if(reachable)candidates.push({x,distance:Math.abs(x-this.x),dir});
   }
   if(!candidates.length)return null;
-  // 最短の梯子を選び、同距離ならドラム缶に関係なく左を優先する。
   candidates.sort((a,b)=>a.distance-b.distance||(a.dir===-1?-1:b.dir===-1?1:0));
   return candidates[0].x-this.x;
  }
