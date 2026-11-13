@@ -4,10 +4,9 @@
 2. 第3部の全ソースを読む。コードと仕様書が食い違ったらコードが正。直す前に必ず該当ファイルの現物を確認する。
 3. ユーザーの依頼は口語で曖昧なことが多い。解釈が割れる所は解釈を明記して実装し、返答の最後に一言確認する。
 4. 実行環境(Node/ブラウザ)があるなら、変更後に `npm test` を通し、動く一式を zip で返す。無いなら変更ファイルを全文で出す。
-5. 仕様を変えたら docs/SPEC.md も更新し、ユーザーに「npm run context で context.txt を作り直してね」と伝える。
-(ユーザー側: プロジェクト直下で `npm run context` を実行すると、このファイルが最新のソースから再生成されます)
+5. 仕様を変えたら docs/SPEC.md も更新し、context.txt も書き直して(構成は第1部の第12章)一緒に返す。生成スクリプトは無い。
 
-生成: 2026-10-28 17:13 JST / ファイル 32 個
+更新: 2026-11-13 / ファイル 31 個
 
 ################################################################
 # 第1部: 仕様書 (docs/SPEC.md)
@@ -29,7 +28,7 @@
 - 新しい `js/` ファイルを足したら **`index.html` の `<script>` に登録**する(読み込み順が依存順。第2章参照)。
 - 変更したら `npm test`(依存なし)を通す。ブラウザ確認が必要なら `npm run test:e2e`(playwright が要る)。
   仕様を変えたらテストも更新する。見た目やプレイ感は実機で確認できないので、断定せず「確認できていない」と言う。
-- 仕様を変えたら **この SPEC.md を更新**し、最後に `npm run context` で context.txt を作り直す。
+- 仕様を変えたら **この SPEC.md を更新**し、最後に **context.txt も書き直して**(第12章)一緒に返す。context.txt の生成スクリプトは無い。
 - 納品は動く状態のプロジェクト一式を zip(フォルダ名 `rekikuru-main`)で返す。**zip の作り直し・添付忘れに注意**(過去にやらかした)。
   コード実行環境が無い場合は、変更したファイルを全文で出す(差分ではなく)。
 
@@ -45,16 +44,15 @@ js/objects/object.js    WC.Obj 基底 / WC.Load(鉄柱の上に載って落ち�
 js/objects/wall.js      W w V 壁   |  ladder.js L H 梯子  |  drum.js O  |  iron.js I  |  bomb.js B  |  door.js D
 js/enemies/enemy.js     WC.Enemy 基底(扉に入る処理)
 js/enemies/chaser.js(1) fastchaser.js(4) runner.js(2) foreman.js(3) fireball.js(火の玉。Game側が生成)
-js/player.js            WC.Player
+js/player.js            WC.Player(連続座標で動く。第3.5章)
 js/levels/sample.js     WC.Levels.sample(サンプルステージ文字列)
 js/game.js              WC.Game ゲーム進行(状態・タイマー・当たり・火の玉出現・クリア判定・HUD描画)
 js/editor.js            WC.TOOLS(パレット定義) WC.Editor(グリッド編集・描画)
 js/params.js            WC.Params 設定スライダーの自動生成(WC.CONFIG の数値を全部出す)
 js/main.js              DOM配線・モード切替(title/edit/play)・入力・メインループ
 ```
-プロジェクト直下のその他: `package.json`(`npm run context` / `npm test` / `npm run test:e2e`)、`docs/SPEC.md`(このファイル)、
-`tools/make-context.js`(context.txt の生成。index.html の script 順に全ソースを並べる。登録漏れの js は警告)、
-`test/`(`harness.js` vm 読み込み、`logic.test.js` ロジックテスト、`e2e.js` 実ブラウザ)、`context.txt`(生成物。手で編集しない)。
+プロジェクト直下のその他: `package.json`(`npm test` / `npm run test:e2e`)、`docs/SPEC.md`(このファイル)、
+`test/`(`harness.js` vm 読み込み、`logic.test.js` ロジックテスト、`e2e.js` 実ブラウザ)、`context.txt`(AI引き継ぎ用の全文。第12章)。
 `style.css` は画面固定レイアウト(ページはスクロールしない。canvas は JS で残り領域にフィット)。
 `body.className` が `title` / `edit` / `play` で、CSS がそれで表示を切り替える。
 
@@ -79,6 +77,26 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
 - **左右ループ**: `tx` は折り返した後のマス、`rx` は端の外(-1〜w)まで連続して動く(`Actor.sync`)。
   描画は `Actor.draw` が反対側にも半身を描く(火の玉は `nowrap` でループしない)。キャラ間の距離は `Game.near` が折り返しを考慮。
 - キャラの `x,y`=いるマス(移動中は出発マス、到着で更新)、`rx,ry`=描画/当たり用の連続座標、`t`=移動の進行 0→1。
+  **プレイヤーだけは例外**で、マス移動ではなく連続座標で動く(第3.5章)。敵・壁・梯子・ドラム缶などはこれまでどおりマス単位。
+
+## 3.5. プレイヤーの移動(連続座標)
+マスの途中・梯子の途中で止まれるように、プレイヤーだけ連続座標で動く(`js/player.js`)。敵はマス単位のまま(プレイヤーを `x,y` と `rx,ry` で見るので無改造で動く)。
+- `rx,ry` = 絵の左上(マス単位の小数)。足は `ry+1` の線、体の中心は `rx+.5`。`rx` は左右端の外まで連続し、範囲は `[-1, w-1)`(超えたら反対側へ)。
+- `x,y` = **一番近いマス**(`wrap(round(rx))`, `round(ry)`)。毎フレーム更新する。敵・爆弾・扉・親方・落ちるドラム缶はこれを見る。`t` は常に1、`tx,ty` は `x,y`。
+- 専用の状態フラグは持たず、位置で決まる:
+  - **段にぴったり**(`ry` が整数): 立てる(`standable`)なら歩く/梯子に入る。立てないなら落下。
+  - **段の間**(`ry` が小数=梯子の途中): 上下だけ動く。横には動かない。掴まっている梯子が壊れたら(`canStep(X,下の段,0,-1)` が偽)落下。
+  - **落下**: `fall.speed` で一定速度。段の境目ごとに `standable` を調べ、立てる段で止まる(ドラム缶・梯子の上にも止まる)。落下中は横に動けない。
+- **横歩き**: 体(中心±`hw`)の先端が新しいマスに入る瞬間に、`canStep(中心のマス,段,dx,0)` で入れるか判定する(ドラム缶・段差・梯子先端の空中は第3章のルールのまま)。
+  入れなければ先端がマスの境目で止まる。足場の端は、中心が端を越えるまで立てて、越えると落ちる。
+  **梯子マスにいる間は、足場の無い空中へは出ない**(梯子から落ちないように。マス版から変えた点。梯子の横の足場・隣の梯子へは出られる)。
+- **梯子**: 梯子の中心から `snap` マス以内で上下キーを押すと、中心へ寄ってから登り降りする(遠いと掴めない)。段にぴったり来るたびに `canStep` で先へ進めるか判定する
+  (「梯子の横から一段上の足場へ」などの例外ルールもそのまま)。途中で止まれる。
+  ただし**梯子の最上段から上へは、そこに足場(地面)があるときだけ**登る。何も無い空中の段(床より一段上)には出ない(`Player.can`。`Level.canStep` 自体は変えていない)。
+- **ハンマー**: `x,y`(一番近いマス)を叩く。段にぴったり・立てる・梯子の途中(上下に梯子がある)でないときだけ。段の間では振れない。
+- **梯子が壊れる**: `Ladder.brk` が `settle()` を呼ぶ → 一番近いマスに揃え、あとは通常の足場ルールで立つ/落ちる。
+- **異常落下**(`startAbn`): `settle()` で一番近いマスに揃え、従来のマス移動(`Actor`)で落ちる。着地したら連続移動に戻る(`rx,ry` は整数)。
+- ミス判定は従来どおり `near<.65`(`rx,ry` の距離)。体の横幅 `hw` は壁(ドラム缶)との衝突だけに使う。
 
 ## 4. ステージ文字(エディタのパレット=`WC.TOOLS`)
 `=`床 / `W`壁1 `w`壁2 `V`壁3(HP=CONFIG.wall.hp) / `L`壊せる梯子(クリア条件) `H`壊せない梯子 / `O`ドラム缶 / `I`鉄柱 / `B`爆弾 / `D`扉 /
@@ -113,7 +131,7 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
   `requestAnimationFrame` を最初に予約する(ここを崩すと「2回目のプレイで画面が真っ暗」になる。過去のバグ)。
 
 ## 7. 調整値 `WC.CONFIG`(config.js)
-`player{speed,hammerTime,lives}` `wall{hp,colors}` `door{openTime,stunAll,minHide,safe}` `drum{fallDelay,fallSpeed}`(壁の落下にも使う)
+`player{speed,hammerTime,lives,hw,snap}`(hw=体の横幅の半分/snap=梯子に吸い付く許容幅。どちらもマス単位) `wall{hp,colors}` `door{openTime,stunAll,minHide,safe}` `drum{fallDelay,fallSpeed}`(壁の落下にも使う)
 `bomb{fuse,chainDelay}` `ladder{breakInterval}` `fall{speed,stun,boost}` `enemies{chaser,fastchaser,runner,foreman,fireball{speed,interval,...}}`。
 数値は設定画面にスライダーで自動表示される(`params.js`)。新しい数値を足せば自動で出る。`WC.DEFAULTS` は初期値のコピー。保存は localStorage キー `wc1`。
 
@@ -132,18 +150,35 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
 - 火が出ない件: 出現段の条件が厳しすぎた(サンプルは1段のみ)+最初の1発が10秒後。→ 段の条件を緩和。間隔は設定で変更可。
 - 左右端は全段足場(消せない)。左右ループはシームレス(半身が反対側から出てくる)。
 - 全消しボタンが存在しない関数を呼んでいた → 修正。
+- 「グリッド単位すぎる。マスの途中や梯子の途中で止まれるように(マリオのように普通に動けるように)」→ プレイヤーだけ連続座標に(第3.5章)。
+  解釈: ジャンプは入れない・重力は一定速度の落下だけ・敵はマス単位のまま。「梯子から空中へ出ない」はこちらの判断で追加した。
+- 梯子のてっぺんで上キーを押しっぱなしにすると空中の段に出てしまう → バグとして、プレイヤーだけ「上に足場がある時だけ登る」に直した(敵は同じ症状が出なかったので触っていない)。
 
 ## 10. 既知の癖・未確定
 - サンプルステージの8行目だけ21文字で、他は20文字(幅=21になり、右端の列は8行目以外は空白)。左右端が常に足場になったので実害は小さいが、直してはいない。
 - 通常プレイでクリアすると同じステージを繰り返す(タイトルへは戻らない)。意図かどうか未確認。
+- プレイヤーの感触(速さ・梯子の吸い付き・足場の端で落ちる位置・体の幅)は実機で確認できていない。`speed` `hw` `snap` のスライダーで調整する想定。
+- `npm test` に4件の失敗が残っている(プレイヤーの連続移動化より前からの失敗。仕様変更に追従していない古いテストで、コードの方が仕様どおり):
+  「梯子マス自体には自動足場を作らない」(梯子の下端は自動で足場が付く仕様)、「親方は落下してドラム缶の一つ上に乗る」(親方は1秒の間にプレイヤーへ向かって動く)、
+  「異常落下した」「下の段へ落ちた」(親方が叩く対象物がプレイヤーのマスに無いので何も起きない)。
 - 見た目は仮(単色の四角)。左右端の足場も通常の床の線と同じ見た目。
 - 最後に実機(スマホ/ブラウザ)で遊んだ確認は取れていない。ロジックはテストで確認済み。
 
 ## 11. テスト
 - `npm test` … `test/logic.test.js`。ブラウザ無しで `vm` にゲームを読み込み(`test/harness.js`、乱数は固定)、ゲームロジックを検証する。
-  キャラの操作は `g.keys={right:true}` で再現し、`g.update(1/60)` を回す。止めたいマスの手前でキーを離すこと(到着の瞬間に次の一歩を決めるため)。
+  キャラの操作は `g.keys={right:true}` で再現し、`g.update(1/60)` を回す。プレイヤーは連続座標なので、キーを離したその場で止まる(敵はマス単位なので、到着の瞬間に次の一歩を決める)。
+  プレイヤーをマスの中心に置くには `put(a,x,y)`(`rx,ry` も入る)か `goTo(g,x)`(中心まで歩いてぴったり置く)を使う。
   テストでは `g.state='play'; g.timers=[]; g.enemies=[]` で準備待ちを飛ばす。壊すものが1つも無いステージは即クリア扱いになるので壁を1つ置く。
 - `npm run test:e2e` … `test/e2e.js`。playwright(+ chromium)が必要。2回目のプレイ・エディタの端・全消しを実ブラウザで確認。
+
+## 12. context.txt の保守
+生成スクリプトは無い。ソースか仕様を変えたら、AI が context.txt を直接書き直して、プロジェクト一式と一緒に返す。構成は固定:
+1. 先頭: 「このファイルの使い方」(AIへ)と、更新日・ファイル数。
+2. 第1部: `docs/SPEC.md` の全文(このファイル)。
+3. 第2部: ファイル一覧(行数つき。第3部の掲載順)。
+4. 第3部: 全ソース。区切りは「`=` を5個 + ` FILE: パス ` + `=` を5個」だけの行。順は index.html → style.css → package.json → js(index.html の script 順)→ その他の js → test → 残り。末尾は「`=` を5個 + ` END OF CONTEXT ` + `=` を5個」の行。
+実行環境があれば、ファイルを読んで連結するだけの一回限りのスクリプトで作ってよい(プロジェクトには置かない)。無ければ、変更したファイルのブロックと、第1部・第2部(行数)を書き換えた context.txt の全文を返す。
+ソースや仕様書の中に、区切りの行そのもの(行頭が `=` 5個+` FILE:` など)を書かないこと(本物の区切りと混ざる)。
 
 ################################################################
 # 第2部: ファイル一覧(第3部の掲載順)
@@ -151,7 +186,7 @@ js/main.js              DOM配線・モード切替(title/edit/play)・入力・
 docs/SPEC.md  (第1部に掲載)
 index.html  (41行)
 style.css  (36行)
-package.json  (11行)
+package.json  (10行)
 js/config.js  (22行)
 js/core/gfx.js  (17行)
 js/core/sound.js  (3行)
@@ -170,7 +205,7 @@ js/enemies/fastchaser.js  (1行)
 js/enemies/runner.js  (31行)
 js/enemies/foreman.js  (46行)
 js/enemies/fireball.js  (6行)
-js/player.js  (19行)
+js/player.js  (58行)
 js/levels/sample.js  (16行)
 js/game.js  (49行)
 js/editor.js  (38行)
@@ -178,8 +213,7 @@ js/params.js  (14行)
 js/main.js  (46行)
 test/e2e.js  (36行)
 test/harness.js  (14行)
-test/logic.test.js  (264行)
-tools/make-context.js  (67行)
+test/logic.test.js  (351行)
 
 ################################################################
 # 第3部: 全ソース
@@ -272,7 +306,6 @@ textarea{width:100%;height:50vh;font:12px monospace;background:#222;color:#ddd;u
   "private": true,
   "description": "Wrecking Crew-like (ブラウザゲーム。ビルド不要)",
   "scripts": {
-    "context": "node tools/make-context.js",
     "test": "node test/logic.test.js",
     "test:e2e": "node test/e2e.js"
   }
@@ -285,7 +318,7 @@ WC.merge=(a,b)=>{for(const k in b)(b[k]&&typeof b[k]=='object'&&!Array.isArray(b
 WC.CONFIG={
  tile:32,
  colors:{floor:'#2a6',edge:'#39f',bottom:'#d83'},  // 通常/左右ループ端/最下段の足場色
- player:{speed:5,hammerTime:.28,lives:3},
+ player:{speed:5,hammerTime:.28,lives:3,hw:.3,snap:.35},  // hw=体の横幅の半分(マス) snap=梯子に吸い付く許容幅(マス)
  wall:{hp:{W:1,w:2,V:3},colors:['','#aaa','#d96','#c33']},
  door:{openTime:4,stunAll:4,minHide:1.5,safe:.6},
  drum:{fallDelay:.8,fallSpeed:3},
@@ -807,22 +840,61 @@ WC.Fireball=class extends WC.Enemy{
 };
 
 ===== FILE: js/player.js =====
+// プレイヤーはマスではなく連続座標(rx,ry)で動く(マスの途中・梯子の途中で止まれる)。rx,ry は絵の左上。足は ry+1 の線。
+// 敵・爆弾・扉などマス単位の処理は x,y を見るので、毎フレーム「一番近いマス」を x,y に入れて渡す(t は常に1)。
+// 通れるか/立てるかは Level.canStep / standable をそのまま使う(ルールは変えず、動きだけ滑らかにする)。
+// 異常落下(startAbn)の間だけ、従来のマス移動(Actor)に任せる。
 WC.Player=class extends WC.Actor{
  constructor(x,y){super(x,y,WC.CONFIG.player.speed);this.name='player'}
  spd(){return this.abn||this.fast?WC.CONFIG.fall.speed:this.speed}
- update(dt,g){const L=g.level,mid=L.ladder(this.x,this.y-1)&&L.ladder(this.x,this.y+1),wasAbn=this.abn;
-  // 画面奥(立っているマス)を殴る。梯子の途中では振れない。
-  if(g.keys.hit&&this.t>=1&&this.busy<=0&&this.stun<=0&&!this.abn&&!mid){
-   this.busy=WC.CONFIG.player.hammerTime;g.hit(this.x,this.y,this)}
-  super.update(dt,g);
+ // 異常落下に入る(梯子が壊れる)ときは、一番近いマスに揃える。マス移動の途中なら Actor の処理に任せる。
+ settle(){if(this.t<1)return super.settle();this.rx=this.tx=this.x;this.ry=this.ty=this.y}
+ // 上へ登れるか。梯子の最上段から上は、そこに足場(地面)がある時だけ(何も無い空中の段に出てしまうのを防ぐ)
+ can(L,X,y,dy){return L.canStep(X,y,0,dy,false)&&!(dy<0&&L.ladder(X,y)&&!L.ladder(X,y-1)&&!L.ground(X,y-1))}
+ snap(L){this.x=this.tx=L.wrap(Math.round(this.rx));this.y=this.ty=Math.round(this.ry)}
+ update(dt,g){const L=g.level,wasAbn=this.abn;
+  if(this.abn||this.t<1)super.update(dt,g);
+  else{this.snap(L);this.free(dt,g);this.snap(L)}
   // プレイヤーは異常落下の着地後にスタンしない。
-  if(wasAbn&&!this.abn&&this.stun>0)this.stun=0
- }
- decide(g){const k=g.keys,L=g.level,dx=(k.right?1:0)-(k.left?1:0),dy=(k.down?1:0)-(k.up?1:0);
+  if(wasAbn&&!this.abn&&this.stun>0)this.stun=0}
+ free(dt,g){const L=g.level,k=g.keys,C=WC.CONFIG.player,X=this.x,Y=this.y;
+  if(this.stun>0){this.stun-=dt;return}
+  const al=Math.abs(this.ry-Y)<1e-6,mid=L.ladder(X,Y-1)&&L.ladder(X,Y+1); // al=段にぴったりいる(梯子の途中ではない)
+  if(al)this.ry=Y;
+  // 画面奥(いるマス)を殴る。足場の上か梯子の端でだけ。梯子の途中では振れない。
+  if(k.hit&&this.busy<=0&&al&&!mid&&L.standable(X,Y,false)){this.busy=C.hammerTime;g.hit(X,Y,this)}
+  if(this.busy>0){this.busy-=dt;return}
+  const dx=(k.right?1:0)-(k.left?1:0),dy=(k.down?1:0)-(k.up?1:0),st=this.speed*dt;
   if(dx)this.dir=dx;
-  if(dy&&L.canStep(this.x,this.y,0,dy))return[0,dy];
-  if(dx&&L.canStep(this.x,this.y,dx,0))return[dx,0];
-  return null}
+  if(!al){ // 段の間(梯子の途中): 上下だけ動く。梯子が壊れて掴まれなくなったら落ちる
+   if(L.canStep(X,Math.ceil(this.ry),0,-1,false)){if(dy)this.climb(L,X,dy,st)}else this.fall(L,X,dt);
+   return}
+  if(!L.standable(X,Y,false)){this.fall(L,X,dt);return} // 足場が無い: 落ちる(横には動けない)
+  // 梯子の中心付近で上下キー: 中心へ寄ってから登り降り(canStep が梯子の有無・端のルールを判定)
+  const xr=Math.round(this.rx); // X は折り返し後のマス、xr は rx と同じ座標系のマス(端の近くでも距離を正しく測る)
+  if(dy&&Math.abs(this.rx-xr)<=C.snap&&this.can(L,X,Y,dy)){
+   const d=xr-this.rx,m=Math.min(Math.abs(d),st);this.rx=m>=Math.abs(d)?xr:this.rx+Math.sign(d)*m;
+   this.climb(L,X,dy,st-m);return}
+  if(dx)this.walk(L,Y,dx,st)}
+ // 梯子を a マス分 dy 方向へ。段にぴったり来るたびに「その先へ進めるか」を canStep で確かめる。
+ climb(L,X,dy,a){
+  while(a>1e-9){const r=this.ry;let n;
+   if(Math.abs(r-Math.round(r))<1e-9){const y=Math.round(r);if(!this.can(L,X,y,dy))break;n=y+dy}
+   else n=dy<0?Math.floor(r):Math.ceil(r);
+   const d=Math.abs(n-r),m=Math.min(a,d);this.ry=m>=d?n:r+dy*m;a-=m}}
+ // 足場が無いので下へ(異常落下と同じ速さ)。段の境目ごとに「立てるか」を調べ、立てる段で止まる(ドラム缶・梯子の上にも止まる)。
+ fall(L,X,dt){let a=WC.CONFIG.fall.speed*dt;
+  while(a>1e-9){const r=this.ry,n=Math.floor(r+1e-9)+1,d=n-r,m=Math.min(a,d);a-=m;this.ry=m>=d?n:r+m;
+   if(this.ry==n&&L.standable(X,n,false))break}}
+ // 横歩き。体(中心±hw)の先端が新しいマスに入る瞬間に、そのマスへ入れるか canStep で確かめる(ドラム缶・段差など)。
+ // 梯子の上からは足場の無い空中へ出ない(梯子から落ちないように)。足場の端からは出られる(中心が端を越えると落ちる)。
+ walk(L,Y,dx,a){const hw=Math.min(.49,WC.CONFIG.player.hw),W=L.w,cx=this.rx+.5;
+  const tile=v=>dx>0?Math.ceil(v-1e-9)-1:Math.floor(v+1e-9); // 体の端がいるマス(境目ぴったりは手前のマス)
+  const t0=tile(cx+dx*hw),t1=tile(cx+dx*(hw+a));let c=cx+dx*a;
+  for(let t=t0+dx;dx>0?t<=t1:t>=t1;t+=dx){const from=L.wrap(t-dx),to=L.wrap(t);
+   if(!L.canStep(from,Y,dx,0,false)||L.ladder(from,Y)&&!L.standable(to,Y,false)){c=(dx>0?t:t+1)-dx*hw;break}}
+  this.rx=c-.5;
+  if(this.rx<-1)this.rx+=W;else if(this.rx>=W-1)this.rx-=W} // 左右端はループ。rx は端の外(-1〜)まで連続(半身は Actor.draw が反対側にも描く)
  trap(){}
  paint(c,s,px,py){super.paint(c,s,px,py);if(this.busy>0){c.fillStyle='#ccc';c.fillRect((px+this.dir*.5+.3)*s,(py+.1)*s,s*.4,s*.3)}}
 };
@@ -1065,8 +1137,8 @@ const test=(name,fn)=>{WC=load();console.log(name);try{fn()}catch(e){fails++;con
 // 壊すもの(壁)が1つも無いとクリア扱いで止まるので、テスト用ステージには壁を置くこと。
 const mk=rows=>{const g=new WC.Game(rows.join('\n'));g.keys={};g.state='play';g.timers=[];g.enemies=[];return g};
 const run=(g,sec,keys)=>{if(keys)g.keys=keys;for(let i=0;i<Math.round(sec*60);i++)g.update(1/60);g.keys={}};
-// x のマスに止まるまで歩く(到着の瞬間に次の一歩を決めるので、目的地へ向かう一歩の間だけキーを押す)
-const goTo=(g,x)=>{let n=0;while(!(g.player.x==x&&g.player.t>=1)&&n++<3000){g.keys=g.player.tx<x?{right:true}:g.player.tx>x?{left:true}:{};g.update(1/60)}g.keys={}};
+// x のマスの中心まで歩く(連続座標なので、1歩以内まで近づいたらぴったり置く)
+const goTo=(g,x)=>{let n=0;while(Math.abs(g.player.rx-x)>=.09&&n++<3000){g.keys=g.player.rx<x?{right:true}:{left:true};g.update(1/60)}g.keys={};g.player.rx=x};
 const hit=g=>{g.keys={hit:true};g.update(1/60);g.keys={}};
 const objs=g=>[...g.level.objs.values()];
 const put=(a,x,y)=>{a.x=a.tx=a.rx=x;a.y=a.ty=a.ry=y};
@@ -1142,7 +1214,7 @@ test('左右ループ: 連続して動く/またいで当たる/火の玉はル�
  for(let i=0;i<60;i++){g.update(1/60);const rx=g.player.rx;minRx=Math.min(minRx,rx);
   if(prev!=null){let d=Math.abs(rx-prev);d=Math.min(d,g.level.w-d);maxJump=Math.max(maxJump,d)}prev=rx}
  ok(minRx<=-.5,'端の外(rx<0)まで連続して動く');ok(maxJump<.2,'1フレームの移動が小さい(ワープしない)');
- const ch=new WC.Enemies['1'](9,2);g.player.rx=-.4;ch.rx=9;ok(g.near(g.player,ch)<.65,'端をまたいで接触判定');
+ const ch=new WC.Enemies['1'](9,2);put(g.player,0,2);g.player.rx=-.4;ch.rx=9;ok(g.near(g.player,ch)<.65,'端をまたいで接触判定');
  const fb=new WC.Fireball(0,2,1);fb.rx=-.3;g.player.rx=9;ok(g.near(fb,g.player)>.65,'火の玉はループしない');
 });
 test('追尾敵: 有効な梯子がない時はプレイヤー方向に関係なく現在の向きを維持する',()=>{
@@ -1318,75 +1390,93 @@ test('追尾敵: 梯子マスで「判定→ドラム缶で反転→再判定」
  for(let i=0;i<60;i++)g.update(1/60);
  ok(e.x!==4,'梯子マスでなければ止まらない(従来どおり反転して歩く)');
 });
+// ---- プレイヤーの連続移動(マスの途中・梯子の途中で止まれる) ----
+const LAD=['          ','          ','W====L====','     L    ','     L    ','=====L====','          ']; // 梯子(5,2)〜(5,5)。上下の段は足場
+const near=(a,b,e=1e-6)=>Math.abs(a-b)<e;
+test('プレイヤー: マスの途中で止まれる/敵が見るx,yは一番近いマス/tは常に1',()=>{
+ const g=mk(['          ','          ','P========W','==========']);
+ run(g,.25,{right:true});const x1=g.player.rx;
+ ok(near(x1,1.25,1e-3),'0.25秒歩くと1.25マス(マスの途中)');
+ run(g,.5);ok(g.player.rx===x1,'キーを離すとその場で止まる');
+ ok(g.player.x==1&&g.player.y==2&&g.player.t==1,'x,y は一番近いマス(1,2)で t=1');
+ g.player.rx=1.6;g.update(1/60);ok(g.player.x==2,'中心が境目を越えると x が変わる');
+});
+test('プレイヤー: 梯子の途中で止まれる/途中では横へ動かない(落ちない)/上下に戻れる',()=>{
+ const g=mk(LAD);put(g.player,5,5);
+ run(g,.25,{up:true});const y1=g.player.ry;
+ ok(y1>3.7&&y1<3.8&&g.player.rx===5,'梯子を途中まで登って止まる(段の間)');
+ ok(g.player.y==4,'敵から見たマスは一番近い段(4)');
+ run(g,.5);ok(g.player.ry===y1,'離すと途中で止まったまま(落ちない)');
+ run(g,.5,{left:true});ok(g.player.rx===5&&g.player.ry===y1,'梯子の途中では横へ動かない');
+ run(g,.2,{down:true});ok(g.player.ry>y1,'途中から下へ戻れる');
+ run(g,2,{up:true});ok(g.player.ry===2&&g.player.y==2,'登りきると上端の段(2)で止まる。上の空中の段(1)へは出ない');
+ run(g,.5,{right:true});ok(g.player.rx>5,'上端の段では横の足場へ歩ける');
+});
+test('プレイヤー: 梯子の中心付近で上下キーを押すと吸い付く/遠いと掴めない',()=>{
+ let g=mk(LAD);put(g.player,5,5);g.player.rx=5.3;
+ run(g,.1,{up:true});ok(g.player.rx===5,'0.3ずれていても梯子の中心に寄る');
+ run(g,.5,{up:true});ok(g.player.ry<4.6,'そのまま登れる');
+ g=mk(LAD);put(g.player,5,5);g.player.rx=5.45;
+ run(g,.3,{up:true});ok(g.player.ry===5&&g.player.rx===5.45,'ずれが大きいと(snap=.35超)掴めず動かない');
+});
+test('プレイヤー: 足場の端は中心が越えるまで立てて、越えると落ちる(重力)',()=>{
+ const g=mk(['          ','          ','P==   ===W','          ','==========']);
+ run(g,.45,{right:true});ok(near(g.player.rx,2.25,1e-3)&&g.player.y==2&&g.player.ry===2,'端で半身はみ出しても立っている');
+ run(g,1,{right:true});ok(g.player.y==4&&g.player.ry===4,'中心が端を越えると落ちて、立てる段(最下段)で止まる');
+});
+test('プレイヤー: ドラム缶には横から入れず、手前までは近づける',()=>{
+ const g=mk(['          ','          ','P=O======W','==========']);
+ run(g,2,{right:true});
+ ok(near(g.player.rx,1.2),'体の端(hw=.3)がドラム缶の手前で止まる');
+ ok(g.player.x==1,'x はドラム缶のマスではない');
+});
+test('プレイヤー: ドラム缶の上の「詰み」は連続移動でも変わらない',()=>{
+ const g=mk(['           ','           ','P===  ====W','====OO=====','           ']);
+ put(g.player,4,2);g.player.y=2;
+ ok(g.level.onDrum(4,2)&&!g.level.floor[2][4],'(4,2)はドラム缶の上の穴');
+ run(g,1,{left:true});run(g,1,{right:true});
+ ok(g.player.y==2&&g.player.rx>=3.2&&g.player.rx<=5.8,'穴の中は動けるが、縁の足場(段差)へは上がれない');
+});
+test('プレイヤー: 梯子から足場の無い空中へは出ない',()=>{
+ const g=mk(LAD);put(g.player,5,3);
+ run(g,.5,{right:true});ok(g.player.x==5&&g.player.y==3&&g.player.rx<=5.2+1e-6,'梯子の途中の段(横が空中)では、マスの境目より先へ出られない(落ちない)');
+});
+test('プレイヤー: 左右端はループして、端の外まで連続して動く',()=>{
+ const g=mk(['          ','          ','P========W','==========']);
+ run(g,.15,{left:true});ok(g.player.rx<0&&g.player.rx>-1&&g.player.x==9,'左端の外(rx<0)へ連続して出て、近いマスは反対側の端(9)');
+ run(g,.2,{left:true});ok(g.player.rx>8&&g.player.x==8,'さらに進むと反対側から出てくる(x=8)');
+});
+test('プレイヤー: ハンマーはいちばん近いマスを叩く/梯子の途中では振れない',()=>{
+ let g=mk(['          ','          ','PWW======L','==========']);
+ g.player.rx=1.6;hit(g);
+ ok(!g.level.get(2,2)&&!!g.level.get(1,2),'rx=1.6 は(2,2)の壁を叩く');
+ g=mk(LAD);put(g.player,5,3);g.player.ry=3.5;hit(g);
+ ok(g.player.busy<=0&&objs(g).filter(o=>o.isLadder).length==4,'梯子の途中(段の間)では振れない');
+ g=mk(LAD);put(g.player,5,5);hit(g);ok(g.player.busy>0,'梯子の下端の段なら振れる');
+});
+test('プレイヤー: 敵との接触は連続座標の距離(マスの途中でも触れたら当たる)',()=>{
+ const mkc=px=>{const g=mk(['          ','          ','P========W','==========']);const e=new WC.Enemies['1'](3,2);e.busy=99;g.enemies=[e];put(g.player,0,2);g.player.rx=px;g.update(1/60);return g};
+ ok(mkc(2.45).state=='dead','0.55マスまで近づくとミス');
+ ok(mkc(2.3).state=='play','0.7マス離れていれば無事');
+});
+test('プレイヤー: 梯子が壊れたら、掴まっていた所から下へ落ちる',()=>{
+ const g=mk(LAD);put(g.player,5,3);g.player.ry=3.5;
+ objs(g).filter(o=>o.isLadder)[0].brk(g);run(g,2);
+ ok(objs(g).filter(o=>o.isLadder).length==0,'梯子は全部壊れた');
+ ok(g.player.y==5&&g.player.ry===5&&g.state=='play','落ちて下端の足場に立つ(死なない)');
+});
+test('プレイヤー: 異常落下(マス移動)のあと、また連続して歩ける',()=>{
+ const g=mk(['          ','          ','P=======W ','          ','==========']);
+ put(g.player,2,2);g.player.startAbn();run(g,2);
+ ok(!g.player.abn&&g.player.y==4&&Number.isInteger(g.player.rx)&&g.player.ry===4,'マスに揃って最下段へ落ちる(スタンなし)');
+ run(g,.25,{right:true});ok(near(g.player.rx,2+1.25,1e-3),'着地後すぐ連続して歩ける');
+});
+test('プレイヤー: 梯子の最上段の上に足場があれば、その足場まで登れる',()=>{
+ const g=mk(['          ','     =    ','     L    ','     L    ','     L    ','=====L====','          ']);
+ put(g.player,5,5);run(g,3,{up:true});
+ ok(g.player.ry===1&&g.player.y==1,'上の足場(5,1)の段まで登って立つ');
+ run(g,.3,{down:true});ok(g.player.ry>1,'そこから降りられる');
+});
 console.log(fails?`\n${fails} 件失敗 / ${count} 件`:`\n全部OK (${count} 件)`);process.exit(fails?1:0);
-
-===== FILE: tools/make-context.js =====
-#!/usr/bin/env node
-// npm run context → context.txt を生成する。
-// 新規チャットに context.txt だけ渡せば、ゲームの仕様・構成・全ソースを把握して開発を続けられるようにするためのもの。
-// 構成: ①AIへの案内 ②docs/SPEC.md(手書きの仕様書) ③ファイル一覧 ④全ファイルの中身(index.html の読み込み順)
-// 依存なし(Node 標準のみ)。ソースを足しても自動で拾う。index.html に登録し忘れた js があれば警告する。
-const fs=require('fs'),path=require('path');
-const root=path.resolve(__dirname,'..'),OUT=path.join(root,'context.txt');
-const SKIP_DIR=new Set(['node_modules','.git']),SKIP_FILE=new Set(['context.txt','package-lock.json']),EXT=new Set(['.js','.html','.css','.md','.json']);
-const SPEC='docs/SPEC.md';
-const M='='.repeat(5); // 区切り記号。ソース内に区切りそのものを書かない(context.txt に載せたとき本物の区切りと混ざるため)
-
-const rel=p=>path.relative(root,p).split(path.sep).join('/');
-const walk=(d,o=[])=>{for(const n of fs.readdirSync(d).sort()){const p=path.join(d,n),s=fs.statSync(p);
- if(s.isDirectory()){if(!SKIP_DIR.has(n))walk(p,o)}else if(EXT.has(path.extname(n))&&!SKIP_FILE.has(n))o.push(rel(p))}return o};
-const read=f=>fs.readFileSync(path.join(root,f),'utf8').replace(/\r\n/g,'\n').replace(/\s+$/,'')+'\n';
-
-const all=walk(root);
-const html=fs.existsSync(path.join(root,'index.html'))?read('index.html'):'';
-const scripts=[...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m=>m[1]);   // 読み込み順=依存順
-const warns=[];
-for(const s of scripts)if(!fs.existsSync(path.join(root,s)))warns.push(`index.html が読み込む ${s} が存在しない`);
-for(const f of all)if(f.startsWith('js/')&&!scripts.includes(f))warns.push(`${f} が index.html の <script> に登録されていない(動かない)`);
-if(!fs.existsSync(path.join(root,SPEC)))warns.push(`${SPEC} が無い(仕様書。作ること)`);
-
-// 並び: index.html, style.css, package.json, js(読み込み順)→その他js, test, tools, 残り。仕様書は別枠なので除く。
-const rank=f=>{if(f==='index.html')return[0,0];if(f==='style.css')return[1,0];if(f==='package.json')return[2,0];
- const i=scripts.indexOf(f);if(i>=0)return[3,i];if(f.startsWith('js/'))return[4,0];if(f.startsWith('test/'))return[5,0];if(f.startsWith('tools/'))return[6,0];return[7,0]};
-const files=all.filter(f=>f!==SPEC).sort((a,b)=>{const x=rank(a),y=rank(b);return x[0]-y[0]||x[1]-y[1]||a.localeCompare(b)});
-
-const body=files.map(f=>`${M} FILE: ${f} ${M}\n${read(f)}`).join('\n');
-const tree=files.map(f=>{const t=read(f);return `${f}  (${t.split('\n').length-1}行)`}).join('\n');
-const spec=fs.existsSync(path.join(root,SPEC))?read(SPEC):'(docs/SPEC.md が無い)\n';
-const now=new Date(Date.now()+9*3600e3).toISOString().replace('T',' ').slice(0,16)+' JST';
-
-const guide=`【このファイルの使い方】(AIへ)
-これは「Wrecking Crew-like」(ブラウザの2Dアクションゲーム)の開発引き継ぎ資料です。あなたはこの続きを開発します。
-1. 第1部の仕様書を最後まで読む(設計・確定仕様・作業ルールが書いてある。ここが一次資料)。
-2. 第3部の全ソースを読む。コードと仕様書が食い違ったらコードが正。直す前に必ず該当ファイルの現物を確認する。
-3. ユーザーの依頼は口語で曖昧なことが多い。解釈が割れる所は解釈を明記して実装し、返答の最後に一言確認する。
-4. 実行環境(Node/ブラウザ)があるなら、変更後に \`npm test\` を通し、動く一式を zip で返す。無いなら変更ファイルを全文で出す。
-5. 仕様を変えたら docs/SPEC.md も更新し、ユーザーに「npm run context で context.txt を作り直してね」と伝える。
-(ユーザー側: プロジェクト直下で \`npm run context\` を実行すると、このファイルが最新のソースから再生成されます)
-`;
-
-const out=`${guide}
-生成: ${now} / ファイル ${files.length + 1} 個
-${warns.length?'\n【警告】\n'+warns.map(w=>'- '+w).join('\n')+'\n':''}
-################################################################
-# 第1部: 仕様書 (${SPEC})
-################################################################
-${spec}
-################################################################
-# 第2部: ファイル一覧(第3部の掲載順)
-################################################################
-${SPEC}  (第1部に掲載)
-${tree}
-
-################################################################
-# 第3部: 全ソース
-################################################################
-${body}
-${M} END OF CONTEXT ${M}
-`;
-fs.writeFileSync(OUT,out);
-const kb=(Buffer.byteLength(out)/1024).toFixed(1);
-console.log(`context.txt を作成: ${files.length+1} ファイル / ${out.length.toLocaleString()} 文字 (${kb} KB)`);
-warns.forEach(w=>console.warn('警告: '+w));
 
 ===== END OF CONTEXT =====
